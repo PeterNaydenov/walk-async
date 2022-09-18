@@ -1,0 +1,45 @@
+{
+  "name": "@peter.naydenov/walk-async",
+  "version": "1.0.0",
+  "description": "Deep copy with fine control during the process. Can be used also as a deep forEach function",
+  "main": "src/main.js",
+  "scripts": {
+    "test": "mocha test",
+    "cover": "nyc mocha test",
+    "build": "webpack --config ./webpack.config.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PeterNaydenov/walk-async.git"
+  },
+  "author": "Peter Naydenov",
+  "license": "MIT",
+  "dependencies": {
+      "ask-for-promise": "1.3.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.19.1",
+    "@babel/preset-env": "^7.19.1",
+    "babel-loader": "^8.2.5",
+    "chai": "^4.3.6",
+    "mocha": "^10.0.0",
+    "nyc": "^15.1.0",
+    "webpack": "^5.74.0",
+    "webpack-cli": "^4.10.0"
+  },
+  "nyc": {
+    "include": [
+      "src/**/*.js"
+    ],
+    "exclude": [
+      "node_modules",
+      "test",
+      "test-data"
+    ],
+    "reporter": [
+      "lcov",
+      "text-summary"
+    ]
+  },
+  "browserslist": "> 2%, not dead"
+}
