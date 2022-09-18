@@ -8,15 +8,13 @@
  *     add a polyfill for 'generators'.
  * 
  *     History notes:
- *        - Development started on March 2nd, 2022
- *        - Walk was published on GitHub for first time: March 4th, 2022
- *        - Walk with Object callback. May 23th, 2022
  *        - Walk-async was born on September 18th, 2022
+ * 
  */
 
 
 
-const askForPromise = require("ask-for-promise");
+const askForPromise = require ( "ask-for-promise" );
 
 
 
