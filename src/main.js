@@ -14,7 +14,7 @@
 
 
 
-const askForPromise = require ( "ask-for-promise" );
+import askForPromise from "ask-for-promise";
 
 
 
@@ -126,7 +126,10 @@ function copyObject ( origin, result, extend, cb, breadcrumbs ) {
                                                 return
                                             }                                        
                                         if ( type === 'simple' ) {
-                                                    if ( !keyCallback )  keyCallbackTask.done ( '$$noUpdates' )
+                                                    if ( !keyCallback ) { 
+                                                            keyCallbackTask.done ( '$$noUpdates' )
+                                                            // return
+                                                        }
                                                     keyCallback ({
                                                                   resolve  : keyCallbackTask.done
                                                                 , reject   : () => keyCallbackTask.done ( null ) 
@@ -155,8 +158,8 @@ function copyObject ( origin, result, extend, cb, breadcrumbs ) {
                                             }
                                         if ( type === 'simple' ) {
                                                     const canInsert = validateForInsertion ( k, result )
-                                                    if ( canInsert )  result.push ( value )
-                                                    else              result [k] = value
+                                                    if ( canInsert )  result.push ( item )
+                                                    else              result [k] = item
                                                     executeCallback[i].done ('key')
                                                     return
                                             }
@@ -186,6 +189,6 @@ function copyObject ( origin, result, extend, cb, breadcrumbs ) {
 
 
 
-module.exports = walk
+export default walk
 
 
