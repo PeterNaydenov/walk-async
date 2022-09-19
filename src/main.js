@@ -14,7 +14,7 @@
 
 
 
-import askForPromise from "ask-for-promise";
+const askForPromise = require("ask-for-promise");
 
 
 
@@ -189,6 +189,6 @@ function copyObject ( origin, result, extend, cb, breadcrumbs ) {
 
 
 
-export default walk
+module.exports = walk
 
 
