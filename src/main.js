@@ -128,7 +128,7 @@ function copyObject ( origin, result, extend, cb, breadcrumbs ) {
                                         if ( type === 'simple' ) {
                                                     if ( !keyCallback ) { 
                                                             keyCallbackTask.done ( '$$noUpdates' )
-                                                            // return
+                                                            return
                                                         }
                                                     keyCallback ({
                                                                   resolve  : keyCallbackTask.done
