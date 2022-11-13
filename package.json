@@ -18,13 +18,13 @@
     "ask-for-promise": "1.3.1"
   },
   "devDependencies": {
-    "@babel/core": "^7.19.1",
-    "@babel/preset-env": "^7.19.1",
-    "babel-loader": "^8.2.5",
-    "chai": "^4.3.6",
-    "mocha": "^10.0.0",
+    "@babel/core": "^7.20.2",
+    "@babel/preset-env": "^7.20.2",
+    "babel-loader": "^9.1.0",
+    "chai": "^4.3.7",
+    "mocha": "^10.1.0",
     "nyc": "^15.1.0",
-    "webpack": "^5.74.0",
+    "webpack": "^5.75.0",
     "webpack-cli": "^4.10.0"
   },
   "nyc": {
