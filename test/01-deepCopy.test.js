@@ -73,6 +73,16 @@ describe ( 'Walk-async -> Deep copy', () => {
                                 expect ( r.props ).to.not.have.property ( 'test' )
                           })
         }) // it Copy a mixed structure
+
+    it ( 'Data property has value "null"', done => {
+          // Fix: Deep copy process is losing object properties that are equal to 'null'
+          const x = { name : null };
+          walk ({data:x}).then ( r => {
+                    expect ( r ).to.have.property ( 'name' )
+                    expect ( r.name ).to.be.equal ( null )
+                    done ()
+                })
+    }) // it Data property has value null
   
 }) // describe
 

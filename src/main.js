@@ -62,8 +62,10 @@ async function goNext ( extend, result, end ) {
 
 
 function findType ( x ) {
-    if ( x instanceof Array            ) return 'array'
-    if ( typeof x === 'object'         ) return 'object'
+    if ( x == null              )   return 'simple'
+    if ( typeof x === 'boolean' )   return 'simple'
+    if ( x instanceof Array     )   return 'array'
+    if ( typeof x === 'object'  )   return 'object'
     return 'simple'
  } // findType func.
 
@@ -91,6 +93,7 @@ function copyObject ( origin, result, extend, cb, breadcrumbs ) {
         , executeCallback = askForPromise ( keys )
         , finish = askForPromise ()
         ;
+        
     keys.forEach ( (k,i) => {
                     let 
                           type = findType(origin[k])
@@ -117,6 +120,10 @@ function copyObject ( origin, result, extend, cb, breadcrumbs ) {
                         }
 
                     objectCallbackTask.onComplete ( res => {
+                                        if ( res === '$$cancel' && item == null ) {   // deep copy, no callbacks
+                                                 keyCallbackTask.done ( '$$noUpdates' )
+                                                 return
+                                            }
                                         if ( res !== '$$cancel' ) {  
                                                 item = res
                                                 type = findType ( item )
