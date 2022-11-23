@@ -145,6 +145,83 @@ describe ( 'Walk-async -> keyCallback function', () => {
                                 expect ( r.group ).to.be.equal ( 'work' )
                         })
       }) // it Properties of the array
+
+
+
+      it ( 'Set a value to NULL', done => {
+                let
+                    x = {
+                              ls   : [ 1,2,3 ]
+                            , name : 'Peter'
+                            , props : {
+                                          eyeColor: null   // Use callback and return this exact value
+                                        , age     : 47
+                                        , height  : 176
+                                        , sizes : [12,33,12,21]
+                                    }
+                            };
+
+                function checkNull ({ value, resolve }) {
+                            resolve (value) 
+                    } // checkNull func.
+
+                walk ({ data:x, keyCallback:checkNull })
+                    .then ( r => {
+                            expect ( r.props.eyeColor ).to.be.equal ( null )
+                            done ()
+                        })
+        }) // it set a value to NULL
+
+
+
+        it ( 'Set a value to undefined', done => {
+                    let
+                        x = {
+                                  ls   : [ 1,2,3 ]
+                                , name : 'Peter'
+                                , props : {
+                                              eyeColor: undefined   // Use callback and return this exact value
+                                            , age     : 47
+                                            , height  : 176
+                                            , sizes : [12,33,12,21]
+                                        }
+                                };
+
+                    function checkNull ({ value, resolve }) {
+                                resolve(value)
+                        } // checkNull func.
+
+                    walk ({ data:x, keyCallback:checkNull })
+                      .then ( r => {
+                                expect ( r.props.eyeColor ).to.be.equal ( undefined )
+                                done ()
+                            })
+          }) // it Set a value to undefined
+        
+
+        it ( 'Copy a function', done => {
+                    let
+                        x = {
+                                  ls   : [ 1,2,3 ]
+                                , name : 'Peter'
+                                , props : {
+                                              eyeColor: undefined   // Use callback and return this exact value
+                                            , age     : function age () { return 47 } 
+                                            , height  : 176
+                                            , sizes : [12,33,12,21]
+                                        }
+                                };
+
+                    function checkNull ({ value, resolve }) {
+                                resolve ( value ) 
+                        } // checkNull func.
+
+                    walk ({ data:x, keyCallback:checkNull })
+                        .then ( r => {
+                                expect ( r.props.age() ).to.be.equal ( 47 )
+                                done ()
+                            })
+            }) // it Copy a function
       
 }) // describe
 

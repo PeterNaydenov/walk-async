@@ -24,9 +24,24 @@ It is very simular to [`@peter.naydenov/walk`](https://github.com/PeterNaydenov/
  - `walk` can not execute another walk call inside callback functions;
 
 
+ Data structure values must be one of the following data types:
+ - string;
+ - number;
+ - bigint;
+ - boolean;
+ - symbol;
+ - null;
+ - undefined;
+ - array;
+ - object(data only);
+ - function;
+
+ Other data types can compromise the results;
+
+
 
 ## кeyCallback
-Function **keyCallback**  of the `walk-async` could be used also as a deep '**forEach**' method no matter of the type of the object(object or array).
+Function **keyCallback**  of the `walk-async` could be used also as a deep '**forEach**' method no matter of the type of the object(objects, array or mixed).
 
 ```js
 function keyCallbackFn ({ value, key, breadcrumbs, resolve, reject }) {
@@ -155,7 +170,7 @@ let x = {
     };
 function keyFn ({value,key,resolve,reject}) {
         if ( key === 'name' )   reject ()
-        else                   resolve ( value )
+        else                    resolve ( value )
 }
 
 walk ({

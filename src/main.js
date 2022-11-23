@@ -62,11 +62,10 @@ async function goNext ( extend, result, end ) {
 
 
 function findType ( x ) {
-    if ( x == null              )   return 'simple'
-    if ( typeof x === 'boolean' )   return 'simple'
+    if ( x == null              )   return 'simple' // null and undefined
     if ( x instanceof Array     )   return 'array'
     if ( typeof x === 'object'  )   return 'object'
-    return 'simple'
+    return 'simple' // number, bigint, string, boolean, symbol, function 
  } // findType func.
 
 
@@ -104,12 +103,13 @@ function copyObject ( origin, result, extend, cb, breadcrumbs ) {
                         , finishWithCallbacks     = askForPromise ()
                         , resultIsArray = (findType (result) === 'array') 
                         , keyNumber = !isNaN ( k )
+                        , IGNORE = Symbol ( 'ignore___' )
                         ;
 
                     if ( hasObjectCallback ) {
                                         objectCallback  ({
                                                               resolve : objectCallbackTask.done
-                                                            , reject  : () => objectCallbackTask.done ( null )
+                                                            , reject  : () => objectCallbackTask.done ( IGNORE )
                                                             , value : item
                                                             , key   : k  
                                                             , breadcrumbs : `${breadcrumbs}/${k}`
@@ -128,8 +128,8 @@ function copyObject ( origin, result, extend, cb, breadcrumbs ) {
                                                 item = res
                                                 type = findType ( item )
                                             }
-                                        if ( item == null     ) {  
-                                                executeCallback[i].done ()
+                                        if ( item == IGNORE     ) {  
+                                                executeCallback[i].done ( 'ignore object' )
                                                 return
                                             }                                        
                                         if ( type === 'simple' ) {
@@ -139,7 +139,7 @@ function copyObject ( origin, result, extend, cb, breadcrumbs ) {
                                                         }
                                                     keyCallback ({
                                                                   resolve  : keyCallbackTask.done
-                                                                , reject   : () => keyCallbackTask.done ( null ) 
+                                                                , reject   : () => keyCallbackTask.done ( IGNORE ) 
                                                                 , value : item
                                                                 , key   : k
                                                                 , breadcrumbs : `${breadcrumbs}/${k}`
@@ -151,8 +151,8 @@ function copyObject ( origin, result, extend, cb, breadcrumbs ) {
                         }) // objectCallbackTask complete
 
                     keyCallbackTask.onComplete ( value => {
-                                        if ( value == null ) {  
-                                                    executeCallback[i].done ( 'nulls' )
+                                        if ( value == IGNORE ) {  
+                                                    executeCallback[i].done ( 'ignore key' )
                                                     return
                                             }
                                         if ( value === '$$cancel' ) { 

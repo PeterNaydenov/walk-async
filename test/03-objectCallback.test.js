@@ -240,7 +240,61 @@ describe ( 'Walk-async -> objectCallback function', () => {
                           expect ( r.length ).to.be.equal ( 1 )
                           expect ( r[0]     ).to.be.equal ( 5 )
                     })
-      }) // it Prevent array empty items 2
+          }) // it Prevent array empty items 2
+
+
+
+      it ( 'Set a object to NULL', done => {
+                 let 
+                    x = {
+                              ls   : [ 1,2,3 ]
+                            , name : 'Peter'
+                            , props : {
+                                          eyeColor: 'blue'
+                                        , age     : 47
+                                        , height  : 176
+                                        , sizes : [12,33,12,21]
+                                    }
+                            };
+                  
+                  function objToNull ({value,key, resolve }) {
+                            if ( key === 'props' )   resolve ( null )
+                            else                     resolve (value)
+                      } // objToNull func.
+
+                  walk ({ data:x, objectCallback:objToNull })
+                      .then ( r => {
+                                  expect ( r.props ).to.be.equal ( null )
+                                  done ()
+                          })
+          }) // it Set a object to NULL
+
+
+
+      it ( 'Set a object to undefined', done => {
+                 let 
+                    x = {
+                              ls   : [ 1,2,3 ]
+                            , name : 'Peter'
+                            , props : {
+                                          eyeColor: 'blue'
+                                        , age     : 47
+                                        , height  : 176
+                                        , sizes : [12,33,12,21]
+                                    }
+                            };
+                  
+                  function objToNull ({value,key, resolve }) {
+                            if ( key === 'props' )   resolve ( undefined )
+                            else                     resolve ( value ) 
+                      } // objToNull func.
+
+                  walk ({ data:x, objectCallback:objToNull })
+                    .then ( r => {
+                                expect ( r.props ).to.be.equal ( undefined )
+                                done ()
+                          })
+          }) // it Set a object to undefined
 
 
       
