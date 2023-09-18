@@ -83,6 +83,35 @@ describe ( 'Walk-async -> Deep copy', () => {
                     done ()
                 })
     }) // it Data property has value null
+
+
+
+    it ( 'html nodes - copy by reference', done => {
+        const data = {
+                      name : 'Peter'
+                    , pretendHTML : { nodeType: 1 }
+                };
+        walk ({ data })
+            .then ( r => {
+                    r.pretendHTML.something = 'hello'
+                    expect ( data.pretendHTML.something ).to.be.equal ( 'hello' )   // Recognize html nodes and keep them as a reference
+                    done ()
+            })
+    }) // html nodes - copy by reference
+
+
+
+  it ( 'Functions type - copy by reference', () => {
+            const data = {
+                          name : 'Peter'
+                        , func : () => 12
+                    };
+                    
+            walk ({ data })
+                .then ( r => {  
+                            expect ( r.func() ).to.be.equal ( 12 )
+                    })
+    }) // it Functions type - copy by reference
   
 }) // describe
 
