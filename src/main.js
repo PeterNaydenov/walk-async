@@ -22,7 +22,7 @@ function walk ({
                   data:origin
                 , objectCallback = null
                 , keyCallback = null
-            }) {
+            }, ...args ) {
     let 
           type = findType ( origin )
         , result
@@ -31,15 +31,16 @@ function walk ({
         , cb = [ keyCallback, objectCallback ]
         , end = askForPromise ()
         ;
+        
     switch ( type ) {
             case 'array'  :
                                 result = []
-                                copyObject ( origin, result, extend, cb, breadcrumbs )
+                                copyObject ( origin, result, extend, cb, breadcrumbs, ...args )
                                     .then ( () => goNext ( extend, result, end ))
                                 break
             case 'object' :
                                 result = {}
-                                copyObject ( origin, result, extend, cb, breadcrumbs )
+                                copyObject ( origin, result, extend, cb, breadcrumbs, ...args )
                                     .then ( () => {
                                             goNext ( extend, result, end )
                                         })
@@ -71,8 +72,8 @@ function findType ( x ) {
 
 
 
-async function* generateList ( data, location, ex, cb, breadcrumbs ) {
-    yield await copyObject ( data , location, ex, cb, breadcrumbs )  
+async function* generateList ( data, location, ex, cb, breadcrumbs, args ) {
+    yield await copyObject ( data , location, ex, cb, breadcrumbs, ...args )  
 } // generateList func.
 
 
@@ -86,7 +87,7 @@ function validateForInsertion ( k, result ) {
 
 
 
-function copyObject ( origin, result, extend, cb, breadcrumbs ) {
+function copyObject ( origin, result, extend, cb, breadcrumbs, ...args ) {
     let 
           [ keyCallback, objectCallback ] = cb
         , keys = Object.keys ( origin )
@@ -114,14 +115,14 @@ function copyObject ( origin, result, extend, cb, breadcrumbs ) {
                                                             , value : item
                                                             , key   : k  
                                                             , breadcrumbs : `${breadcrumbs}/${k}`
-                                                })
+                                                }, ...args )
                         }
                     else {
                                         objectCallbackTask.done ( '$$cancel' )
                         }
 
                     objectCallbackTask.onComplete ( res => {
-                                        if ( res === '$$cancel' && item == null ) {   // deep copy, no callbacks
+                                        if ( res === '$$cancel' && origin.hasOwnProperty(item) ) {   // deep copy, no callbacks
                                                  keyCallbackTask.done ( '$$noUpdates' )
                                                  return
                                             }
@@ -144,7 +145,7 @@ function copyObject ( origin, result, extend, cb, breadcrumbs ) {
                                                                 , value : item
                                                                 , key   : k
                                                                 , breadcrumbs : `${breadcrumbs}/${k}`
-                                                            });
+                                                            }, ...args );
                                             }
                                         else {
                                                     keyCallbackTask.done ( '$$cancel' )
@@ -179,14 +180,14 @@ function copyObject ( origin, result, extend, cb, breadcrumbs ) {
                                                     const newObject = {};
                                                     if ( resultIsArray && keyNumber )   result.push ( newObject )
                                                     else                                result[k] = newObject
-                                                    extend.push ( generateList( item, newObject, extend, cb, `${breadcrumbs}/${k}` )   )
+                                                    extend.push ( generateList( item, newObject, extend, cb, `${breadcrumbs}/${k}`, args )   )
                                                     executeCallback[i].done ('object')
                                             }
                                         if ( type === 'array' ) {
                                                     const newArray = [];
                                                     if ( resultIsArray && keyNumber )   result.push ( newArray )
                                                     else                                result[k] = newArray
-                                                    extend.push ( generateList( item, newArray, extend, cb, `${breadcrumbs}/${k}` )   )
+                                                    extend.push ( generateList( item, newArray, extend, cb, `${breadcrumbs}/${k}`, args )   )
                                                     executeCallback[i].done ('array')
                                             }
                         })

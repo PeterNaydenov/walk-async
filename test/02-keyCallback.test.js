@@ -222,6 +222,47 @@ describe ( 'Walk-async -> keyCallback function', () => {
                                 done ()
                             })
             }) // it Copy a function
+
+
+
+        it ( 'Extract collections', done => {
+                    let
+                        x = {
+                                  ls   : [ 1,2,3 ]
+                                , name : 'Peter'
+                                , props : {
+                                              eyeColor: undefined   // Use callback and return this exact value
+                                            , age     : function age () { return 47 } 
+                                            , height  : 176
+                                            , sizes : [12,33,12,21]
+                                        }
+                                }
+                      , fnList = []
+                      , propsCollection = {}
+                      ;
+
+                    function valueFn ({ key, value, resolve }, fn, p ) {
+                                const isFn = (typeof value === 'function');
+                                if ( isFn )   fn.push ( value )
+                                
+                                if ( ['name','eyeColor', 'age'].includes(key) )   p[key] = isFn ? value() : value
+                                resolve ( value ) 
+                        } // valueFn func.
+
+                    walk ({ data:x, keyCallback:valueFn }, fnList, propsCollection )
+                        .then ( r => {
+                                expect ( r.props.age() ).to.be.equal ( 47 )
+                                expect ( fnList.length ).to.be.equal ( 1 )
+                                expect ( r.props ).to.have.property ( 'eyeColor' )
+
+                                expect ( propsCollection ).to.have.property ( 'name' )
+                                expect ( propsCollection ).to.have.property ( 'eyeColor' )
+                                expect ( propsCollection ).to.have.property ( 'age' )
+                                expect ( propsCollection.age ).to.be.equal ( 47 )
+
+                                done ()
+                            })
+            }) // it Copy a function
       
 }) // describe
 

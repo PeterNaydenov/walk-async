@@ -2,8 +2,15 @@
 
 
 
+### 1.3.0 ( 2023-09-23)
+- [x] Provide collection containers to callbacks. Extract data during iteration;
+- [x] Fix: Keys with value 'undefined' are not being copied;
+
+
+
 ### 1.2.0 ( 2023-09-18)
 - [x] HTML DOM nodes - copy by reference; 
+- [ ] Bug: Keys with value 'undefined' are not being copied;
 
 
 
