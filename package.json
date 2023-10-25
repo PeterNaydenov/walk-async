@@ -14,7 +14,7 @@
   "author": "Peter Naydenov",
   "license": "MIT",
   "dependencies": {
-    "ask-for-promise": "1.3.1"
+    "ask-for-promise": "1.4.0"
   },
   "devDependencies": {
     "chai": "^4.3.10",

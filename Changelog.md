@@ -1,6 +1,10 @@
 # Release History
 
 
+### 1.3.1 ( 2023-10-25)
+- [x] Dependencies update. Ask-for-promise version 1.4.0;
+
+
 
 ### 1.3.0 ( 2023-09-23)
 - [x] Provide collection containers to callbacks. Extract data during iteration;
