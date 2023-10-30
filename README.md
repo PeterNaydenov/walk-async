@@ -2,6 +2,8 @@
 
 ![version](https://img.shields.io/github/package-json/v/peterNaydenov/walk-async)
 ![license](https://img.shields.io/github/license/peterNaydenov/walk-async)
+![GitHub issues](https://img.shields.io/github/issues/peterNaydenov/walk-async)
+![npm bundle size](https://img.shields.io/bundlephobia/minzip/%40peter.naydenov%2Fwalk-async)
 
 Creates an immutable copies of javascript data structures(objects, arrays or mixed). Can execute callback functions on every object property(objectCallback) and/or every primitive property(keyCallback). Callbacks can modify result object during the walk process. Mask, filter or substitute values during the copy process. 
 
