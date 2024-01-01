@@ -9,12 +9,12 @@
  * 
  *     History notes:
  *        - Walk-async was born on September 18th, 2022
+ *        - Converted to ES module on January 1st, 2024
  * 
  */
 
 
-
-const askForPromise = require("ask-for-promise");
+import askForPromise from "ask-for-promise"
 
 
 
@@ -198,6 +198,6 @@ function copyObject ( origin, result, extend, cb, breadcrumbs, ...args ) {
 
 
 
-module.exports = walk
+export default walk
 
 

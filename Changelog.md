@@ -1,5 +1,10 @@
 # Release History
 
+### 2.0.0 ( 2024-01-01)
+- [x] Module converted to ES module;
+- [x] Dev dependencies updates;
+
+
 
 ### 1.3.1 ( 2023-10-25)
 - [x] Dependencies update. Ask-for-promise version 1.4.0;

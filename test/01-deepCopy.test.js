@@ -1,10 +1,8 @@
 "use strict"
 
-const
-      chai = require ( 'chai' )
-    , expect = chai.expect
-    , walk = require ( '../src/main.js' )
-    ;
+import { expect } from 'chai'
+import walk from '../src/main.js'
+
 
 
 describe ( 'Walk-async -> Deep copy', () => {

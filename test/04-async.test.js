@@ -1,11 +1,8 @@
 "use strict"
 
-const
-      chai = require ( 'chai' )
-    , expect = chai.expect
-    , walk = require ( '../src/main.js' )
-    , askForPromise = require ( 'ask-for-promise' )
-    ;
+import { expect } from 'chai'
+import walk from '../src/main.js'
+
 
 
 describe ( 'Walk-async -> Asynchronous tests', () => {
