@@ -1,5 +1,16 @@
 # Release History
 
+
+
+### 2.0.1 ( 2024-01-31)
+ - [x] Dev dependencies updates. Chai to version 5.0.3;
+ - [x] Dev dependencies updates. C8 to version 9.1.0;
+ - [x] Folder 'dist' was added to the project. Includes commonjs, umd and esm versions of the library;
+ - [x] Package.json: "exports" section was added. Allows you to use package as commonjs or es6 module without additional configuration;
+ - [x] Rollup was added to the project. Used to build the library versions;
+
+
+
 ### 2.0.0 ( 2024-01-01)
 - [x] Module converted to ES module;
 - [x] Dev dependencies updates;
