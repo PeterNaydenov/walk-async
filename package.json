@@ -1,18 +1,18 @@
 {
   "name": "@peter.naydenov/walk-async",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Deep copy with fine control during the process. Can be used also as a deep forEach function",
   "main": ".dist/walk-async.umd.js",
   "type": "module",
-  "exports" : {
-    "." : {
-      "import" : "./.dist/walk-async.esm.mjs",
-      "require" : "./.dist/walk-async.cjs",
-      "default" : "./dist/walk-async.umd.js"
+  "exports": {
+    ".": {
+      "import": "./.dist/walk-async.esm.mjs",
+      "require": "./.dist/walk-async.cjs",
+      "default": "./dist/walk-async.umd.js"
     },
-    "./package.json" : "./package.json",
-    "./dist/*" : "./dist/*",
-    "./src/*" : "./src/*"
+    "./package.json": "./package.json",
+    "./dist/*": "./dist/*",
+    "./src/*": "./src/*"
   },
   "scripts": {
     "test": "mocha test",
