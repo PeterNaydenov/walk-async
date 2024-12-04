@@ -2,6 +2,12 @@
 
 
 
+### 3.0.0 ( 2024-12-04)
+- [x] Object callback will be triggered on 'root' object as well;
+
+
+
+
 ### 2.0.2 ( 2024-01-31)
  - [x] Dev dependencies updates. Chai to version 5.0.3;
  - [x] Dev dependencies updates. C8 to version 9.1.0;
