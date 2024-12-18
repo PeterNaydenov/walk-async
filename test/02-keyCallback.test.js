@@ -242,22 +242,22 @@ describe ( 'Walk-async -> keyCallback function', () => {
                     function valueFn ({ key, value, resolve }, fn, p ) {
                                 const isFn = (typeof value === 'function');
                                 if ( isFn )   fn.push ( value )
-                                
+
                                 if ( ['name','eyeColor', 'age'].includes(key) )   p[key] = isFn ? value() : value
                                 resolve ( value ) 
                         } // valueFn func.
 
                     walk ({ data:x, keyCallback:valueFn }, fnList, propsCollection )
-                        .then ( r => {
+                        .then ( r => {                          
                                 expect ( r.props.age() ).to.be.equal ( 47 )
-                                expect ( fnList.length ).to.be.equal ( 1 )
                                 expect ( r.props ).to.have.property ( 'eyeColor' )
-
+                                expect ( fnList.length ).to.be.equal ( 1 )
+                                
                                 expect ( propsCollection ).to.have.property ( 'name' )
                                 expect ( propsCollection ).to.have.property ( 'eyeColor' )
                                 expect ( propsCollection ).to.have.property ( 'age' )
                                 expect ( propsCollection.age ).to.be.equal ( 47 )
-
+                                
                                 done ()
                             })
             }) // it Copy a function

@@ -31,7 +31,7 @@ function walk ({
         , cb = [ keyCallback, objectCallback ]
         , end = askForPromise ()
         ;
-        
+
     switch ( type ) {
             case 'array'  :
                                 result = []
@@ -124,7 +124,7 @@ function copyObject ( origin, result, extend, cb, breadcrumbs, ...args ) {
                         }
 
                     objectCallbackTask.onComplete ( res => {
-                                        if ( res === '$$cancel' && origin.hasOwnProperty(item) ) {   // deep copy, no callbacks
+                                        if ( res === '$$cancel' && !keyCallback ) {   // deep copy, no callbacks
                                                  keyCallbackTask.done ( '$$noUpdates' )
                                                  return
                                             }
@@ -133,7 +133,7 @@ function copyObject ( origin, result, extend, cb, breadcrumbs, ...args ) {
                                                 type = findType ( item )
                                             }
                                         if ( item == IGNORE     ) {  
-                                                executeCallback[i].done ( 'ignore object' )
+                                                executeCallback.promises[i].done ( 'ignore object' )
                                                 return
                                             }                                        
                                         if ( type === 'simple' ) {
@@ -157,11 +157,11 @@ function copyObject ( origin, result, extend, cb, breadcrumbs, ...args ) {
                     keyCallbackTask.onComplete ( value => {
                                         if ( isRoot ) {
                                                     extend.push ( generateList ( item, result, extend, cb, 'root', args ) )
-                                                    executeCallback[i].done ( 'root' )
+                                                    executeCallback.promises[i].done ( 'root' )
                                                     return
                                             }
                                         if ( value == IGNORE ) {  
-                                                    executeCallback[i].done ( 'ignore key' )
+                                                    executeCallback.promises[i].done ( 'ignore key' )
                                                     return
                                             }
                                         if ( value === '$$cancel' ) { 
@@ -170,15 +170,16 @@ function copyObject ( origin, result, extend, cb, breadcrumbs, ...args ) {
                                             }
                                         if ( value !== '$$noUpdates' ) {
                                                     item = value
-                                                    type = findType ( item )
+                                                    type = findType ( item )                                            
                                             }
                                         if ( type === 'simple' ) {
                                                     const canInsert = validateForInsertion ( k, result )
                                                     if ( canInsert )  result.push ( item )
                                                     else              result [k] = item
-                                                    executeCallback[i].done ('key')
+                                                    executeCallback.promises[i].done ('key')
                                                     return
                                             }
+                                            
                                         finishWithCallbacks.done ()
                         }) // keyCallbackTask complete
 
@@ -188,14 +189,14 @@ function copyObject ( origin, result, extend, cb, breadcrumbs, ...args ) {
                                                     if ( resultIsArray && keyNumber )   result.push ( newObject )
                                                     else                                result[k] = newObject
                                                     extend.push ( generateList( item, newObject, extend, cb, br, args )   )
-                                                    executeCallback[i].done ('object')
+                                                    executeCallback.promises[i].done ('object')
                                             }
                                         if ( type === 'array' ) {
                                                     const newArray = [];
                                                     if ( resultIsArray && keyNumber )   result.push ( newArray )
                                                     else                                result[k] = newArray
                                                     extend.push ( generateList( item, newArray, extend, cb, br, args )   )
-                                                    executeCallback[i].done ('array')
+                                                    executeCallback.promises[i].done ('array')
                                             }
                         })
             }) // forEach k
