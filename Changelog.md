@@ -1,6 +1,10 @@
 # Release History
 
 
+### 3.0.1 ( 2024-12-18)
+- [x] Dependencies updates. Ask-for-promise to version 3.0.1;
+
+
 
 ### 3.0.0 ( 2024-12-04)
 - [x] Object callback will be triggered on 'root' object as well;
