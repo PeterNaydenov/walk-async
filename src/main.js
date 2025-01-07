@@ -16,8 +16,28 @@
 
 import askForPromise from "ask-for-promise"
 
+/**
+ * @typedef {Object} Options
+ * @property {Object} data - The data structure to be copied.
+ * @property {Function|null} objectCallback - A function called for every object in the data structure.
+ * @property {Function|null} keyCallback - A function called for every property in the data structure.
+ */
 
 
+
+
+/**
+ * Walk-async is a deep copy function that executes callback functions on every object and property. 
+ * Callbacks are async functions. 
+ * 
+ * @param {Options} options - Object with following properties:
+ *                          - data - The data structure to be copied.
+ *                          - objectCallback - A function that will be called for every object in the data structure.
+ *                          - keyCallback - A function that will be called for every property in the data structure.
+ * @param {...any} args - Any additional arguments will be passed to the callback functions.
+ * 
+ * @returns {Promise} - A promise that resolves to the immutable copy of the data structure.
+ */
 function walk ({ 
                   data:origin
                 , objectCallback = null
