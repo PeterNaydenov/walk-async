@@ -1,6 +1,13 @@
 # Release History
 
 
+
+### 3.0.2 (2025-01-07)
+- [x] JSDoc was added to the project;
+- [x] Generatated typescript definitions;
+
+
+
 ### 3.0.1 ( 2024-12-18)
 - [x] Dependencies updates. Ask-for-promise to version 3.0.1;
 
