@@ -4,6 +4,7 @@
   "description": "Deep copy with fine control during the process. Can be used also as a deep forEach function",
   "main": ".dist/walk-async.umd.js",
   "type": "module",
+  "types": "./types/main.d.ts",
   "exports": {
     ".": {
       "import": "./.dist/walk-async.esm.mjs",
@@ -17,7 +18,8 @@
   "scripts": {
     "test": "mocha test",
     "cover": "c8 mocha test",
-    "build": "rollup -c"
+    "build": "rollup -c",
+    "postbuild": "tsc -p tsconfig.json"
   },
   "repository": {
     "type": "git",
@@ -35,7 +37,8 @@
     "c8": "^10.1.3",
     "chai": "^5.1.2",
     "mocha": "^11.0.1",
-    "rollup": "^4.30.0"
+    "rollup": "^4.30.0",
+    "typescript": "^5.7.2"
   },
   "c8": {
     "include": [
