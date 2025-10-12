@@ -2,6 +2,11 @@
 
 
 
+### 3.0.3 (2025-10-12)
+- [x] Dependencies updates. Ask-for-promise to version 3.0.2;
+
+
+
 ### 3.0.2 (2025-01-07)
 - [x] JSDoc was added to the project;
 - [x] Generatated typescript definitions;
