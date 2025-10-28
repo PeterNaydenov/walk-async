@@ -28,7 +28,7 @@
   "author": "Peter Naydenov",
   "license": "MIT",
   "dependencies": {
-    "ask-for-promise": "3.0.2"
+    "ask-for-promise": "3.1.0"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^28.0.9",
