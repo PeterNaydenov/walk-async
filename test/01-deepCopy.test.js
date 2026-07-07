@@ -104,13 +104,68 @@ describe ( 'Walk-async -> Deep copy', () => {
                           name : 'Peter'
                         , func : () => 12
                     };
-                    
+
             walk ({ data })
-                .then ( r => {  
+                .then ( r => {
                             expect ( r.func() ).to.be.equal ( 12 )
                     })
     }) // it Functions type - copy by reference
-  
+
+
+
+  it ( 'Property named "root" with object value', done => {
+            const data = {
+                          root : { a: 1 }
+                        , b    : 2
+                    };
+            walk ({ data })
+                .then ( r => {
+                            expect ( r ).to.have.property ( 'root' )
+                            expect ( r.root ).to.deep.equal ({ a: 1 })
+                            expect ( r ).to.not.have.property ( 'a' )   // must not be flattened into the parent
+                            expect ( r.b ).to.be.equal ( 2 )
+                            done ()
+                    })
+    }) // it Property named "root" with object value
+
+
+
+  it ( 'Property named "root" with primitive value', done => {
+            const data = {
+                          root : 5
+                        , b    : 2
+                    };
+            walk ({ data })
+                .then ( r => {
+                            expect ( r ).to.have.property ( 'root' )
+                            expect ( r.root ).to.be.equal ( 5 )
+                            expect ( r.b ).to.be.equal ( 2 )
+                            done ()
+                    })
+    }) // it Property named "root" with primitive value
+
+
+
+  it ( 'Property named "root" - breadcrumbs are correct', done => {
+            const data = {
+                          root : { a: 1 }
+                    };
+            const visited = [];
+
+            function oCallbackFn ({ resolve, value, breadcrumbs }) {
+                      visited.push ( breadcrumbs )
+                      resolve ( value )
+                }
+
+            walk ({ data, objectCallback: oCallbackFn })
+                .then ( r => {
+                            expect ( visited ).to.include ( 'root' )        // the real root object
+                            expect ( visited ).to.include ( 'root/root' )   // the property named 'root'
+                            expect ( r.root ).to.deep.equal ({ a: 1 })
+                            done ()
+                    })
+    }) // it Property named "root" - breadcrumbs are correct
+
 }) // describe
 
 

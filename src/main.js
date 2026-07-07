@@ -55,12 +55,12 @@ function walk ({
     switch ( type ) {
             case 'array'  :
                                 result = []
-                                copyObject ( {root:origin}, result, extend, cb, breadcrumbs, ...args )
+                                copyObject ( {root:origin}, result, extend, cb, breadcrumbs, true, ...args )
                                     .then ( () => goNext ( extend, result, end ))
                                 break
             case 'object' :
                                 result = {}
-                                copyObject ( {root:origin}, result, extend, cb, breadcrumbs, ...args )
+                                copyObject ( {root:origin}, result, extend, cb, breadcrumbs, true, ...args )
                                     .then ( () => {
                                             goNext ( extend, result, end )
                                         })
@@ -93,7 +93,7 @@ function findType ( x ) {
 
 
 async function* generateList ( data, location, ex, cb, breadcrumbs, args ) {
-    yield await copyObject ( data , location, ex, cb, breadcrumbs, ...args )  
+    yield await copyObject ( data , location, ex, cb, breadcrumbs, false, ...args )
 } // generateList func.
 
 
@@ -107,7 +107,10 @@ function validateForInsertion ( k, result ) {
 
 
 
-function copyObject ( origin, result, extend, cb, breadcrumbs, ...args ) {
+// 'isWrapper' is true only for the call from 'walk' where 'origin' is the
+// synthetic {root:origin} wrapper. Detecting the wrapper by its position in the
+// call chain (instead of by key name) keeps data keys named 'root' safe.
+function copyObject ( origin, result, extend, cb, breadcrumbs, isWrapper, ...args ) {
     let 
           [ keyCallback, objectCallback ] = cb
         , keys = Object.keys ( origin )
@@ -126,7 +129,7 @@ function copyObject ( origin, result, extend, cb, breadcrumbs, ...args ) {
                         , resultIsArray = (findType (result) === 'array') 
                         , keyNumber = !isNaN ( k )
                         , IGNORE = Symbol ( 'ignore___' )
-                        , isRoot = (breadcrumbs === 'root' && k === 'root' )
+                        , isRoot = isWrapper   // The wrapper has exactly one key: 'root'
                         , br = isRoot ? 'root' : `${breadcrumbs}/${k}`
                         ;
 
