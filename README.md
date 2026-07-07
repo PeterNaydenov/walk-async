@@ -13,6 +13,7 @@ Creates an immutable copies of javascript data structures(objects, arrays or mix
             data             // (required) Any JS object structure
           , objectCallback   // (optional) Function executed on each object property
           , keyCallback      // (optional) Function executed on each primitive property
+          , timeout          // (optional) Milliseconds. Reject the promise if callbacks do not resolve in time
       })
     .then ( result => {
                               // Result will become a exact deep copy of "data" 
@@ -55,7 +56,8 @@ function keyCallbackFn ({ value, key, breadcrumbs, resolve, reject }) {
     // breadcrumbs: location of the property;
     // resolve: function that will resolve the callback promise. Provide the result as argument;
     // reject: function that can cancel the copy of that property;
-    // Important: key callback should be resolved or rejected. 
+    // Important: key callback should be resolved or rejected on every code path,
+    // otherwise the walk promise never settles. See section "Timeout".
   }
 
 const result = await walk ({ data, keyCallback : keyCallbackFn });  // It's the short way to provide only key-callback. Callback functions are optional.
@@ -74,7 +76,8 @@ function objectCallbackFn ({ value, key, breadcrumbs, resolve, reject }) {
       // breadcrumbs: location of the object;
       // resolve: function that will resolve the callback promise. Provide the result as argument;
       // reject: function that can cancel the copy of that property;
-      // Important: Object callback should be resolved or rejected. 
+      // Important: Object callback should be resolved or rejected on every code path,
+      // otherwise the walk promise never settles. See section "Timeout".
 }
 
 walk ({ 
@@ -93,6 +96,32 @@ Skip key-callbacks by not providing a keyCallback function.
 ```js
  let result = await walk ({ data })   // ignore key-callbacks
 ```
+
+
+## Timeout
+
+Every callback must call `resolve` or `reject` on every code path. If some path forgets to do it, the promise returned by `walk` will never settle — and by default there is no error and no hint which callback is the reason. The optional `timeout` property (milliseconds) turns that silent hang into a rejection with diagnostics:
+
+```js
+function objectCallbackFn ({ value, key, breadcrumbs, resolve, reject }) {
+        if ( breadcrumbs === 'root/props' )   return   // BUG: this path never resolves
+        resolve ( value )
+    }
+
+walk ({ data, objectCallback: objectCallbackFn, timeout: 5000 })
+    .catch ( err => {
+              console.error ( err.message )
+              // walk-async: timed out after 5000ms; callbacks still pending:
+              //   - objectCallback at 'root/props'
+        })
+```
+
+The error message lists the breadcrumbs of every callback that was started but never resolved or rejected, so the broken code path can be found directly.
+
+Notes:
+ - `timeout` is disabled by default. Without it the behavior is exactly as before;
+ - The limit applies to the whole walk, not to a single callback. Set it well above the worst-case duration of the legitimate async work inside the callbacks — it is a debugging safety net, not a scheduler;
+ - When callbacks finish in time, the timer is cleared and the result is delivered as usual.
 
 
 ## Installation
