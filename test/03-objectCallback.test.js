@@ -328,6 +328,57 @@ describe ( 'Walk-async -> objectCallback function', () => {
           }) // it Root object callback
 
 
+
+      it ( 'Object callback replaces root with a string', done => {
+                  const x = { a: 1 };
+
+                  function oCallbackFn ({ resolve, value, key }) {
+                            if ( key === 'root' )   return resolve ( 'list' )
+                            resolve ( value )
+                      }
+
+                  walk ({ data:x, objectCallback: oCallbackFn })
+                    .then ( r => {
+                                expect ( r ).to.be.equal ( 'list' )
+                                done ()
+                          })
+          }) // it Object callback replaces root with a string
+
+
+
+      it ( 'Object callback replaces root with null', done => {
+                  const x = { a: 1 };
+
+                  function oCallbackFn ({ resolve, value, key }) {
+                            if ( key === 'root' )   return resolve ( null )
+                            resolve ( value )
+                      }
+
+                  walk ({ data:x, objectCallback: oCallbackFn })
+                    .then ( r => {
+                                expect ( r ).to.be.equal ( null )
+                                done ()
+                          })
+          }) // it Object callback replaces root with null
+
+
+
+      it ( 'Object callback rejects root', done => {
+                  const x = { a: 1 };
+
+                  function oCallbackFn ({ resolve, reject, key }) {
+                            if ( key === 'root' )   return reject ()
+                            resolve ( x )
+                      }
+
+                  walk ({ data:x, objectCallback: oCallbackFn })
+                    .then ( r => {
+                                expect ( r ).to.deep.equal ({})
+                                done ()
+                          })
+          }) // it Object callback rejects root
+
+
       
 }) // describe
 

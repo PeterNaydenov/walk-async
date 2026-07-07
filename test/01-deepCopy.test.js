@@ -113,6 +113,21 @@ describe ( 'Walk-async -> Deep copy', () => {
 
 
 
+  it ( 'Own "__proto__" property - no prototype injection', done => {
+            const data = JSON.parse ( '{"__proto__": {"polluted": true}, "a": 1}' );   // own '__proto__' key, as delivered by untrusted JSON
+            walk ({ data })
+                .then ( r => {
+                            expect ( Object.getPrototypeOf ( r ) ).to.be.equal ( Object.prototype )   // prototype must stay untouched
+                            expect ( r.polluted ).to.be.equal ( undefined )                           // nothing injected via inheritance
+                            expect ( r.a ).to.be.equal ( 1 )
+                            expect ( Object.prototype.hasOwnProperty.call ( r, '__proto__' ) ).to.be.true   // copied as an own property
+                            expect ( Object.getOwnPropertyDescriptor ( r, '__proto__' ).value ).to.deep.equal ({ polluted: true })
+                            done ()
+                    })
+    }) // it Own "__proto__" property - no prototype injection
+
+
+
   it ( 'Property named "root" with object value', done => {
             const data = {
                           root : { a: 1 }

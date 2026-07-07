@@ -43,31 +43,50 @@ function walk ({
                 , objectCallback = null
                 , keyCallback = null
             }, ...args ) {
-    let 
+    let
           type = findType ( origin )
         , result
         , extend = []
         , breadcrumbs = 'root'
         , cb = [ keyCallback, objectCallback ]
         , end = askForPromise ()
+        , rootTask = askForPromise ()
+        , IGNORE = Symbol ( 'ignore___' )
         ;
 
-    switch ( type ) {
-            case 'array'  :
-                                result = []
-                                copyObject ( {root:origin}, result, extend, cb, breadcrumbs, true, ...args )
-                                    .then ( () => goNext ( extend, result, end ))
-                                break
-            case 'object' :
-                                result = {}
-                                copyObject ( {root:origin}, result, extend, cb, breadcrumbs, true, ...args )
-                                    .then ( () => {
-                                            goNext ( extend, result, end )
-                                        })
-                                break
-            case 'simple' :
-                                end.done ( origin ) 
-        } // switch type
+    if ( type !== 'simple' && objectCallback ) {   // Root object callback. Executed before the result is allocated, so it can replace the root with anything.
+            objectCallback ({
+                          resolve : rootTask.done
+                        , reject  : () => rootTask.done ( IGNORE )
+                        , value : origin
+                        , key   : 'root'
+                        , breadcrumbs
+                }, ...args )
+        }
+    else    rootTask.done ( origin )
+
+    rootTask.onComplete ( item => {
+            if ( item === IGNORE ) {
+                    end.done ( ( type === 'array' ) ? [] : {} )
+                    return
+                }
+            switch ( findType ( item ) ) {
+                    case 'array'  :
+                                        result = []
+                                        copyObject ( item, result, extend, cb, breadcrumbs, ...args )
+                                            .then ( () => goNext ( extend, result, end ))
+                                        break
+                    case 'object' :
+                                        result = {}
+                                        copyObject ( item, result, extend, cb, breadcrumbs, ...args )
+                                            .then ( () => {
+                                                    goNext ( extend, result, end )
+                                                })
+                                        break
+                    case 'simple' :
+                                        end.done ( item )
+                } // switch type
+        })
     return end.promise
 } // walk func.
 
@@ -93,7 +112,7 @@ function findType ( x ) {
 
 
 async function* generateList ( data, location, ex, cb, breadcrumbs, args ) {
-    yield await copyObject ( data , location, ex, cb, breadcrumbs, false, ...args )
+    yield await copyObject ( data , location, ex, cb, breadcrumbs, ...args )
 } // generateList func.
 
 
@@ -107,10 +126,16 @@ function validateForInsertion ( k, result ) {
 
 
 
-// 'isWrapper' is true only for the call from 'walk' where 'origin' is the
-// synthetic {root:origin} wrapper. Detecting the wrapper by its position in the
-// call chain (instead of by key name) keeps data keys named 'root' safe.
-function copyObject ( origin, result, extend, cb, breadcrumbs, isWrapper, ...args ) {
+// Plain assignment of a '__proto__' key triggers the inherited setter and
+// replaces the prototype of 'target' instead of creating an own property.
+function setKey ( target, k, value ) {
+    if ( k === '__proto__' )   Object.defineProperty ( target, k, { value, enumerable:true, writable:true, configurable:true })
+    else                       target[k] = value
+} // setKey func.
+
+
+
+function copyObject ( origin, result, extend, cb, breadcrumbs, ...args ) {
     let 
           [ keyCallback, objectCallback ] = cb
         , keys = Object.keys ( origin )
@@ -129,8 +154,7 @@ function copyObject ( origin, result, extend, cb, breadcrumbs, isWrapper, ...arg
                         , resultIsArray = (findType (result) === 'array') 
                         , keyNumber = !isNaN ( k )
                         , IGNORE = Symbol ( 'ignore___' )
-                        , isRoot = isWrapper   // The wrapper has exactly one key: 'root'
-                        , br = isRoot ? 'root' : `${breadcrumbs}/${k}`
+                        , br = `${breadcrumbs}/${k}`
                         ;
 
                     if ( hasObjectCallback ) {
@@ -178,12 +202,7 @@ function copyObject ( origin, result, extend, cb, breadcrumbs, isWrapper, ...arg
                         }) // objectCallbackTask complete
 
                     keyCallbackTask.onComplete ( value => {
-                                        if ( isRoot ) {
-                                                    extend.push ( generateList ( item, result, extend, cb, 'root', args ) )
-                                                    executeCallback.promises[i].done ( 'root' )
-                                                    return
-                                            }
-                                        if ( value == IGNORE ) {  
+                                        if ( value == IGNORE ) {
                                                     executeCallback.promises[i].done ( 'ignore key' )
                                                     return
                                             }
@@ -198,7 +217,7 @@ function copyObject ( origin, result, extend, cb, breadcrumbs, isWrapper, ...arg
                                         if ( type === 'simple' ) {
                                                     const canInsert = validateForInsertion ( k, result )
                                                     if ( canInsert )  result.push ( item )
-                                                    else              result [k] = item
+                                                    else              setKey ( result, k, item )
                                                     executeCallback.promises[i].done ('key')
                                                     return
                                             }
@@ -210,14 +229,14 @@ function copyObject ( origin, result, extend, cb, breadcrumbs, isWrapper, ...arg
                                         if ( type === 'object' ) {
                                                     const newObject = {};
                                                     if ( resultIsArray && keyNumber )   result.push ( newObject )
-                                                    else                                result[k] = newObject
+                                                    else                                setKey ( result, k, newObject )
                                                     extend.push ( generateList( item, newObject, extend, cb, br, args )   )
                                                     executeCallback.promises[i].done ('object')
                                             }
                                         if ( type === 'array' ) {
                                                     const newArray = [];
                                                     if ( resultIsArray && keyNumber )   result.push ( newArray )
-                                                    else                                result[k] = newArray
+                                                    else                                setKey ( result, k, newArray )
                                                     extend.push ( generateList( item, newArray, extend, cb, br, args )   )
                                                     executeCallback.promises[i].done ('array')
                                             }
