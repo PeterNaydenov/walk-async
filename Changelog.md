@@ -2,6 +2,11 @@
 
 
 
+### 3.0.6 (2026-07-07)
+- [x] Fix: Top-level property named 'root' was flattened into the result or dropped;
+
+
+
 ### 3.0.5 (2026-05-05)
 - [x] Dependencies updates. Ask-for-promise to version 3.1.1;
 
