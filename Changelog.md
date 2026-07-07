@@ -2,6 +2,11 @@
 
 
 
+### 3.1.0 (2026-07-07)
+- [x] New option 'timeout'. Milliseconds. When set, the walk promise is rejected if callbacks do not resolve in time. Error message lists the breadcrumbs of the pending callbacks;
+
+
+
 ### 3.0.7 (2026-07-07)
 - [x] Fix: 'objectCallback' resolving the root object with a primitive value was crashing on null/undefined or producing broken results;
 - [x] Fix: Own '__proto__' property was replacing the prototype of the copy instead of being copied as a regular property;
