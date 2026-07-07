@@ -2,6 +2,12 @@
 
 
 
+### 3.0.7 (2026-07-07)
+- [x] Fix: 'objectCallback' resolving the root object with a primitive value was crashing on null/undefined or producing broken results;
+- [x] Fix: Own '__proto__' property was replacing the prototype of the copy instead of being copied as a regular property;
+
+
+
 ### 3.0.6 (2026-07-07)
 - [x] Fix: Top-level property named 'root' was flattened into the result or dropped;
 
