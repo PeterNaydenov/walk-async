@@ -21,40 +21,45 @@ import askForPromise from "ask-for-promise"
  * @property {Object} data - The data structure to be copied.
  * @property {Function|null} objectCallback - A function called for every object in the data structure.
  * @property {Function|null} keyCallback - A function called for every property in the data structure.
+ * @property {number|null} [timeout] - Milliseconds. When set, the promise is rejected if callbacks do not resolve in time. Error lists the pending callbacks.
  */
 
 
 
 
 /**
- * Walk-async is a deep copy function that executes callback functions on every object and property. 
- * Callbacks are async functions. 
- * 
+ * Walk-async is a deep copy function that executes callback functions on every object and property.
+ * Callbacks are async functions.
+ *
  * @param {Options} options - Object with following properties:
  *                          - data - The data structure to be copied.
  *                          - objectCallback - A function that will be called for every object in the data structure.
  *                          - keyCallback - A function that will be called for every property in the data structure.
+ *                          - timeout - Milliseconds. When set, the promise is rejected if callbacks do not resolve in time.
  * @param {...any} args - Any additional arguments will be passed to the callback functions.
- * 
+ *
  * @returns {Promise} - A promise that resolves to the immutable copy of the data structure.
  */
-function walk ({ 
+function walk ({
                   data:origin
                 , objectCallback = null
                 , keyCallback = null
+                , timeout = null
             }, ...args ) {
     let
           type = findType ( origin )
         , result
         , extend = []
         , breadcrumbs = 'root'
-        , cb = [ keyCallback, objectCallback ]
+        , pending = new Set ()   // Callbacks in flight. Read on timeout to report which ones never resolved.
+        , cb = [ keyCallback, objectCallback, pending ]
         , end = askForPromise ()
         , rootTask = askForPromise ()
         , IGNORE = Symbol ( 'ignore___' )
         ;
 
     if ( type !== 'simple' && objectCallback ) {   // Root object callback. Executed before the result is allocated, so it can replace the root with anything.
+            pending.add ( `objectCallback at 'root'` )
             objectCallback ({
                           resolve : rootTask.done
                         , reject  : () => rootTask.done ( IGNORE )
@@ -66,6 +71,7 @@ function walk ({
     else    rootTask.done ( origin )
 
     rootTask.onComplete ( item => {
+            pending.delete ( `objectCallback at 'root'` )
             if ( item === IGNORE ) {
                     end.done ( ( type === 'array' ) ? [] : {} )
                     return
@@ -87,7 +93,20 @@ function walk ({
                                         end.done ( item )
                 } // switch type
         })
-    return end.promise
+
+    if ( timeout == null )   return end.promise
+
+    const   // Watchdog. 'end.timeout' races 'end.onComplete' against a timer, but leaves 'end.promise' untouched — so return a guard promise fed from the race instead.
+          EXPIRED = Symbol ( 'expired___' )
+        , guard = askForPromise ()
+        ;
+    end.timeout ( timeout, EXPIRED )
+    end.onComplete ( res => {
+            if ( res !== EXPIRED ) {   guard.done ( res );   return   }
+            const stuck = [...pending].map ( name => `\n  - ${name}` ).join ( '' )
+            guard.cancel ( new Error ( `walk-async: timed out after ${timeout}ms; callbacks still pending:${stuck}` ) )
+        })
+    return guard.promise
 } // walk func.
 
 
@@ -136,8 +155,8 @@ function setKey ( target, k, value ) {
 
 
 function copyObject ( origin, result, extend, cb, breadcrumbs, ...args ) {
-    let 
-          [ keyCallback, objectCallback ] = cb
+    let
+          [ keyCallback, objectCallback, pending ] = cb
         , keys = Object.keys ( origin )
         , executeCallback = askForPromise ( keys )
         , finish = askForPromise ()
@@ -155,9 +174,12 @@ function copyObject ( origin, result, extend, cb, breadcrumbs, ...args ) {
                         , keyNumber = !isNaN ( k )
                         , IGNORE = Symbol ( 'ignore___' )
                         , br = `${breadcrumbs}/${k}`
+                        , objectTag = `objectCallback at '${br}'`
+                        , keyTag    = `keyCallback at '${br}'`
                         ;
 
                     if ( hasObjectCallback ) {
+                                        pending.add ( objectTag )
                                         objectCallback  ({
                                                               resolve : objectCallbackTask.done
                                                             , reject  : () => objectCallbackTask.done ( IGNORE )
@@ -171,6 +193,7 @@ function copyObject ( origin, result, extend, cb, breadcrumbs, ...args ) {
                         }
 
                     objectCallbackTask.onComplete ( res => {
+                                        pending.delete ( objectTag )
                                         if ( res === '$$cancel' && !keyCallback ) {   // deep copy, no callbacks
                                                  keyCallbackTask.done ( '$$noUpdates' )
                                                  return
@@ -188,9 +211,10 @@ function copyObject ( origin, result, extend, cb, breadcrumbs, ...args ) {
                                                             keyCallbackTask.done ( '$$noUpdates' )
                                                             return
                                                         }
+                                                    pending.add ( keyTag )
                                                     keyCallback ({
                                                                   resolve  : keyCallbackTask.done
-                                                                , reject   : () => keyCallbackTask.done ( IGNORE ) 
+                                                                , reject   : () => keyCallbackTask.done ( IGNORE )
                                                                 , value : item
                                                                 , key   : k
                                                                 , breadcrumbs : br
@@ -202,6 +226,7 @@ function copyObject ( origin, result, extend, cb, breadcrumbs, ...args ) {
                         }) // objectCallbackTask complete
 
                     keyCallbackTask.onComplete ( value => {
+                                        pending.delete ( keyTag )
                                         if ( value == IGNORE ) {
                                                     executeCallback.promises[i].done ( 'ignore key' )
                                                     return
