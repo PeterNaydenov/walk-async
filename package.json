@@ -16,8 +16,9 @@
     "./src/*": "./src/*"
   },
   "scripts": {
-    "test": "mocha test",
-    "cover": "c8 mocha test",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "cover": "vitest run --coverage",
     "build": "rollup -c",
     "postbuild": "tsc -p tsconfig.json"
   },
@@ -34,29 +35,31 @@
     "@rollup/plugin-commonjs": "^29.0.3",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-terser": "^1.0.0",
-    "c8": "^11.0.0",
-    "chai": "^6.2.2",
-    "mocha": "^11.7.6",
+    "@vitest/coverage-v8": "3.2.4",
     "rollup": "^4.62.2",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vite": "^8.1.4",
+    "vitest": "3.2.4"
   },
   "overrides": {
     "diff": "^8.0.2",
     "serialize-javascript": "^7.0.0"
   },
-  "c8": {
-    "include": [
-      "src/**/*.js"
-    ],
-    "exclude": [
-      "node_modules",
-      "test",
-      "test-data"
-    ],
-    "reporter": [
-      "lcov",
-      "text-summary"
-    ]
+  "vitest": {
+    "coverage": {
+      "include": [
+        "src/**/*.js"
+      ],
+      "exclude": [
+        "node_modules",
+        "test",
+        "test-data"
+      ],
+      "reporter": [
+        "lcov",
+        "text-summary"
+      ]
+    }
   },
   "browserslist": "> 2%, not dead",
   "allowScripts": {
