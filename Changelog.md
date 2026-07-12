@@ -2,6 +2,14 @@
 
 
 
+### 3.1.1 (2026-07-12)
+- [x] Moving to typescript v.7.x.x;
+- [x] Changing 'mocha' testing library with vitest;
+- [x] Converting all tests to vitest;
+- [x] Changing coverage library from c8 to @vitest/coverage-v8;
+
+
+
 ### 3.1.0 (2026-07-07)
 - [x] New option 'timeout'. Milliseconds. When set, the walk promise is rejected if callbacks do not resolve in time. Error message lists the breadcrumbs of the pending callbacks;
 
