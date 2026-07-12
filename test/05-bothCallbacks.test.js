@@ -1,14 +1,13 @@
 "use strict"
 
-import { expect } from 'chai'
 import walk from '../src/main.js'
 
 
 
 describe ( 'Walk-async -> Both callbacks together', () => {
 
-    it ( 'Modify on object and key callback level', () => {
-                let 
+    it ( 'Modify on object and key callback level', async () => {
+                let
                     x = {
                               ls   : [ 1,2,3 ]
                             , name : 'Peter'
@@ -20,10 +19,10 @@ describe ( 'Walk-async -> Both callbacks together', () => {
                                     }
                             }
                   ;
-                
+
                 function keysModifier ({value, key, resolve, reject }) {
                                 if ( key === 'age')             reject ()  // remove 'age'
-                                else if ( key=== 'eyeColor' )   resolve ( 'xxx' ) 
+                                else if ( key=== 'eyeColor' )   resolve ( 'xxx' )
                                 else                            resolve ( value )
                         }
 
@@ -36,19 +35,15 @@ describe ( 'Walk-async -> Both callbacks together', () => {
                         }
 
 
-                walk ({
+                const r = await walk ({
                           data : x
                         , keyCallback : keysModifier
                         , objectCallback : objectModifier
-                        })
-                  .then ( r => {
-                                        expect ( r.props ).to.not.have.property ( 'age' )
-                                        expect ( r.props ).to.not.have.property ( 'sizes' )
-                                        expect ( r.props.eyeColor ).to.be.equal ( 'xxx' )
-                        })
+                        });
+                expect ( r.props ).not.toHaveProperty ( 'age' )
+                expect ( r.props ).not.toHaveProperty ( 'sizes' )
+                expect ( r.props.eyeColor ).toBe ( 'xxx' )
        })  // it Modify on object and key callback level
 
-      
+
 }) // describe
-
-

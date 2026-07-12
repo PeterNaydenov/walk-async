@@ -1,52 +1,45 @@
 "use strict"
 
-import { expect } from 'chai'
 import walk from '../src/main.js'
 
 
 
 describe ( 'Walk-async -> Deep copy', () => {
 
-    it ( 'Copy a primitive value', () => {
+    it ( 'Copy a primitive value', async () => {
                 let x = 12;
-                walk ({data:x})
-                    .then ( r => {
-                                x = 64
-                                expect ( r ).to.be.equal ( 12 )
-                                expect ( r !== x )
-                          })
+                const r = await walk ({data:x});
+                x = 64;
+                expect ( r ).toBe ( 12 )
+                expect ( r ).not.toBe ( x )
         }) // it copy a primitives
 
 
 
-    it ( 'Copy array of strings', () => {
+    it ( 'Copy array of strings', async () => {
                 let x = [ 'one', 'two', 'three' ];
-                walk ({data:x})
-                    .then ( r => {
-                              x.push ( 'four' )
-                              expect ( r ).to.have.length ( 3 )
-                        })
+                const r = await walk ({data:x});
+                x.push ( 'four' );
+                expect ( r ).toHaveLength ( 3 )
         }) // it copy array of strings
 
 
 
-    it ( 'Copy a single level deep object', () => {
-                let 
+    it ( 'Copy a single level deep object', async () => {
+                let
                     x = { name:'Peter', age: 47 }
                   , z = x
-                  ;                   
-                walk ( {data:x})
-                    .then ( r => {
-                            x.test = 'hello'
-                            expect ( r ).to.not.have.property ( 'test' )
-                            expect ( z ).to.have.property ( 'test' )
-                      })                  
+                  ;
+                const r = await walk ( {data:x});
+                x.test = 'hello';
+                expect ( r ).not.toHaveProperty ( 'test' )
+                expect ( z ).toHaveProperty ( 'test' )
         }) // it copy a single level deep object
 
 
 
-    it ( 'Copy a mixed structure', () => {
-                let 
+    it ( 'Copy a mixed structure', async () => {
+                let
                     x = {
                               ls   : [ 1,2,3 ]
                             , name : 'Peter'
@@ -58,110 +51,92 @@ describe ( 'Walk-async -> Deep copy', () => {
                                     }
                             }
                   ;
-                walk ( x )
-                    .then ( r => {
-                                r.props.sizes.push ( 66 )
-                                x.props.sizes[0] = 222222
-                                x.props.test = 'hello'
+                const r = await walk ({ data: x });
+                r.props.sizes.push ( 66 );
+                x.props.sizes[0] = 222222;
+                x.props.test = 'hello';
 
-                                expect ( x.props.sizes ).to.have.length ( 4 )
-                                expect ( r.props.sizes ).to.have.length ( 5 )
-                                expect ( x.props.sizes[0] !== r.props.sizes[0])
-                
-                                expect ( r.props ).to.not.have.property ( 'test' )
-                          })
+                expect ( x.props.sizes ).toHaveLength ( 4 )
+                expect ( r.props.sizes ).toHaveLength ( 5 )
+                expect ( x.props.sizes[0] ).not.toBe ( r.props.sizes[0] )
+
+                expect ( r.props ).not.toHaveProperty ( 'test' )
         }) // it Copy a mixed structure
 
-    it ( 'Data property has value "null"', done => {
+    it ( 'Data property has value "null"', async () => {
           // Fix: Deep copy process is losing object properties that are equal to 'null'
           const x = { name : null };
-          walk ({data:x}).then ( r => {
-                    expect ( r ).to.have.property ( 'name' )
-                    expect ( r.name ).to.be.equal ( null )
-                    done ()
-                })
+          const r = await walk ({data:x});
+          expect ( r ).toHaveProperty ( 'name' )
+          expect ( r.name ).toBe ( null )
     }) // it Data property has value null
 
 
 
-    it ( 'html nodes - copy by reference', done => {
+    it ( 'html nodes - copy by reference', async () => {
         const data = {
                       name : 'Peter'
                     , pretendHTML : { nodeType: 1 }
                 };
-        walk ({ data })
-            .then ( r => {
-                    r.pretendHTML.something = 'hello'
-                    expect ( data.pretendHTML.something ).to.be.equal ( 'hello' )   // Recognize html nodes and keep them as a reference
-                    done ()
-            })
+        const r = await walk ({ data });
+        r.pretendHTML.something = 'hello';
+        expect ( data.pretendHTML.something ).toBe ( 'hello' )   // Recognize html nodes and keep them as a reference
     }) // html nodes - copy by reference
 
 
 
-  it ( 'Functions type - copy by reference', () => {
+  it ( 'Functions type - copy by reference', async () => {
             const data = {
                           name : 'Peter'
                         , func : () => 12
                     };
 
-            walk ({ data })
-                .then ( r => {
-                            expect ( r.func() ).to.be.equal ( 12 )
-                    })
+            const r = await walk ({ data });
+            expect ( r.func() ).toBe ( 12 )
     }) // it Functions type - copy by reference
 
 
 
-  it ( 'Own "__proto__" property - no prototype injection', done => {
+  it ( 'Own "__proto__" property - no prototype injection', async () => {
             const data = JSON.parse ( '{"__proto__": {"polluted": true}, "a": 1}' );   // own '__proto__' key, as delivered by untrusted JSON
-            walk ({ data })
-                .then ( r => {
-                            expect ( Object.getPrototypeOf ( r ) ).to.be.equal ( Object.prototype )   // prototype must stay untouched
-                            expect ( r.polluted ).to.be.equal ( undefined )                           // nothing injected via inheritance
-                            expect ( r.a ).to.be.equal ( 1 )
-                            expect ( Object.prototype.hasOwnProperty.call ( r, '__proto__' ) ).to.be.true   // copied as an own property
-                            expect ( Object.getOwnPropertyDescriptor ( r, '__proto__' ).value ).to.deep.equal ({ polluted: true })
-                            done ()
-                    })
+            const r = await walk ({ data });
+            expect ( Object.getPrototypeOf ( r ) ).toBe ( Object.prototype )                    // prototype must stay untouched
+            expect ( r.polluted ).toBe ( undefined )                                            // nothing injected via inheritance
+            expect ( r.a ).toBe ( 1 )
+            expect ( Object.prototype.hasOwnProperty.call ( r, '__proto__' ) ).toBe ( true )    // copied as an own property
+            expect ( Object.getOwnPropertyDescriptor ( r, '__proto__' ).value ).toEqual ({ polluted: true })
     }) // it Own "__proto__" property - no prototype injection
 
 
 
-  it ( 'Property named "root" with object value', done => {
+  it ( 'Property named "root" with object value', async () => {
             const data = {
                           root : { a: 1 }
                         , b    : 2
                     };
-            walk ({ data })
-                .then ( r => {
-                            expect ( r ).to.have.property ( 'root' )
-                            expect ( r.root ).to.deep.equal ({ a: 1 })
-                            expect ( r ).to.not.have.property ( 'a' )   // must not be flattened into the parent
-                            expect ( r.b ).to.be.equal ( 2 )
-                            done ()
-                    })
+            const r = await walk ({ data });
+            expect ( r ).toHaveProperty ( 'root' )
+            expect ( r.root ).toEqual ({ a: 1 })
+            expect ( r ).not.toHaveProperty ( 'a' )   // must not be flattened into the parent
+            expect ( r.b ).toBe ( 2 )
     }) // it Property named "root" with object value
 
 
 
-  it ( 'Property named "root" with primitive value', done => {
+  it ( 'Property named "root" with primitive value', async () => {
             const data = {
                           root : 5
                         , b    : 2
                     };
-            walk ({ data })
-                .then ( r => {
-                            expect ( r ).to.have.property ( 'root' )
-                            expect ( r.root ).to.be.equal ( 5 )
-                            expect ( r.b ).to.be.equal ( 2 )
-                            done ()
-                    })
+            const r = await walk ({ data });
+            expect ( r ).toHaveProperty ( 'root' )
+            expect ( r.root ).toBe ( 5 )
+            expect ( r.b ).toBe ( 2 )
     }) // it Property named "root" with primitive value
 
 
 
-  it ( 'Property named "root" - breadcrumbs are correct', done => {
+  it ( 'Property named "root" - breadcrumbs are correct', async () => {
             const data = {
                           root : { a: 1 }
                     };
@@ -172,15 +147,10 @@ describe ( 'Walk-async -> Deep copy', () => {
                       resolve ( value )
                 }
 
-            walk ({ data, objectCallback: oCallbackFn })
-                .then ( r => {
-                            expect ( visited ).to.include ( 'root' )        // the real root object
-                            expect ( visited ).to.include ( 'root/root' )   // the property named 'root'
-                            expect ( r.root ).to.deep.equal ({ a: 1 })
-                            done ()
-                    })
+            const r = await walk ({ data, objectCallback: oCallbackFn });
+            expect ( visited ).toContain ( 'root' )        // the real root object
+            expect ( visited ).toContain ( 'root/root' )   // the property named 'root'
+            expect ( r.root ).toEqual ({ a: 1 })
     }) // it Property named "root" - breadcrumbs are correct
 
 }) // describe
-
-

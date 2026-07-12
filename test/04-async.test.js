@@ -1,13 +1,12 @@
 "use strict"
 
-import { expect } from 'chai'
 import walk from '../src/main.js'
 
 
 
 describe ( 'Walk-async -> Asynchronous tests', () => {
 
-    it ( 'Call walk inside other walk', () => {
+    it ( 'Call walk inside other walk', async () => {
                 let data = {
                             users : [
                                         {
@@ -23,12 +22,11 @@ describe ( 'Walk-async -> Asynchronous tests', () => {
                     , friendsWithPermition = [ 'Kalin', 'Aleks', 'Tony', 'Ivan' ]
                     ;
 
-                async function filterObj ({value:obj, task, breadcrumbs }) {
+                function filterObj ({value:obj, resolve}) {
                             if ( obj.friends ) {
-                                        function filterNames ({value:person, key, breadcrumbs, task:scanning} ) {
-                                                                let validated = friendsWithPermition.includes(person)
-                                                                if ( validated )    scanning.done ( person )
-                                                                else                scanning.done ( null   )
+                                        function filterNames ({value:person, resolve, reject}) {
+                                                                if ( friendsWithPermition.includes(person) )   resolve ( person )
+                                                                else                                           reject ()
                                             } // filterNames func.
                                         walk ({
                                                       data: obj.friends
@@ -36,51 +34,26 @@ describe ( 'Walk-async -> Asynchronous tests', () => {
                                                 })
                                             .then ( r => {
                                                     obj.friends = r
-                                                    task.done ( obj )
+                                                    resolve ( obj )
                                                 })
                                         return
                                 }
-                            // if ( obj. ) {
-                            //             function filterNames ({value:user, key, breadcrumbs, task:scanning} ) {
-                            //                                     let valid = friendsWithPermition.includes(user) ;
-                            //                                     // if ( valid )   console.log ( user )
-                            //                                     if ( valid )   scanning ( user )
-                            //                                     else           scanning ( null )
-                            //                 } // filterNames func.
-                            //            walk ({ 
-                            //                       data : obj
-                            //                     , keyCallback : filterNames 
-                            //                 }).then ( r => {
-                            //                     // console.log ( r )
-                            //                     task.done ( r )
-                            //                 })
-                            //             return
-                            //     }
-                            // console.log ( 'Object callback' )
-                            // console.log ( obj )
-                            task.done (obj)
+                            resolve ( obj )
                     } // filterObj func.
 
-                // let res = walk ( data, [null, filterObj])
-                // console.log ( res.users[0] )
-                // console.log (  )
-                // walk ( data )
-                walk ({
+                const x = await walk ({
                           data
-                        , objectCallback : filterObj 
-                        })
-                    .then ( x => {
-                                console.log ( x.users[0] )
-                        })
-                // console.log ( x )
-                
-                    
-                
+                        , objectCallback : filterObj
+                        });
+
+                expect ( x.users ).toHaveLength ( 2 )
+                expect ( x.users[0].friends ).toEqual ([ 'Tony', 'Kalin' ])
+                expect ( x.users[1].friends ).toEqual ([ 'Ivan' ])
         }) // it call walk inside other walk
 
 
 
-    it ( 'Timeout: stuck objectCallback rejects with diagnostics', done => {
+    it ( 'Timeout: stuck objectCallback rejects with diagnostics', async () => {
                 const x = {
                               name : 'Peter'
                             , props : { age: 47 }
@@ -91,20 +64,13 @@ describe ( 'Walk-async -> Asynchronous tests', () => {
                           resolve ( value )
                     }
 
-                walk ({ data:x, objectCallback: oCallbackFn, timeout: 50 })
-                    .then (
-                          ()  => done ( new Error ( 'Promise should reject on timeout' ))
-                        , err => {
-                                  expect ( err ).to.be.an.instanceof ( Error )
-                                  expect ( err.message ).to.include ( 'timed out after 50ms' )
-                                  expect ( err.message ).to.include ( "objectCallback at 'root/props'" )
-                                  done ()
-                            })
+                await expect ( walk ({ data:x, objectCallback: oCallbackFn, timeout: 50 }) )
+                    .rejects.toThrow ( /timed out after 50ms.*objectCallback at 'root\/props'/s )
         }) // it Timeout: stuck objectCallback rejects with diagnostics
 
 
 
-    it ( 'Timeout: stuck keyCallback rejects with diagnostics', done => {
+    it ( 'Timeout: stuck keyCallback rejects with diagnostics', async () => {
                 const x = {
                               name : 'Peter'
                             , age  : 47
@@ -115,41 +81,30 @@ describe ( 'Walk-async -> Asynchronous tests', () => {
                           resolve ( value )
                     }
 
-                walk ({ data:x, keyCallback: kCallbackFn, timeout: 50 })
-                    .then (
-                          ()  => done ( new Error ( 'Promise should reject on timeout' ))
-                        , err => {
-                                  expect ( err.message ).to.include ( "keyCallback at 'root/name'" )
-                                  done ()
-                            })
+                await expect ( walk ({ data:x, keyCallback: kCallbackFn, timeout: 50 }) )
+                    .rejects.toThrow ( /keyCallback at 'root\/name'/ )
         }) // it Timeout: stuck keyCallback rejects with diagnostics
 
 
 
-    it ( 'Timeout: resolves normally when callbacks are on time', done => {
+    it ( 'Timeout: resolves normally when callbacks are on time', async () => {
                 const x = { a: 1, b: { c: 2 } };
 
                 function oCallbackFn ({ resolve, value }) {
                           setTimeout ( () => resolve ( value ), 10 )   // slow but within the limit
                     }
 
-                walk ({ data:x, objectCallback: oCallbackFn, timeout: 200 })
-                    .then ( r => {
-                                expect ( r ).to.deep.equal ({ a: 1, b: { c: 2 } })
-                                done ()
-                        })
+                const r = await walk ({ data:x, objectCallback: oCallbackFn, timeout: 200 });
+                expect ( r ).toEqual ({ a: 1, b: { c: 2 } })
         }) // it Timeout: resolves normally when callbacks are on time
 
 
 
-    it ( 'Timeout: plain deep copy is not affected', done => {
+    it ( 'Timeout: plain deep copy is not affected', async () => {
                 const x = { a: 1, ls: [ 1, 2, 3 ] };
 
-                walk ({ data:x, timeout: 50 })
-                    .then ( r => {
-                                expect ( r ).to.deep.equal ({ a: 1, ls: [ 1, 2, 3 ] })
-                                done ()
-                        })
+                const r = await walk ({ data:x, timeout: 50 });
+                expect ( r ).toEqual ({ a: 1, ls: [ 1, 2, 3 ] })
         }) // it Timeout: plain deep copy is not affected
 
 }) // describe

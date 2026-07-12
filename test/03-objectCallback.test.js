@@ -1,14 +1,13 @@
 "use strict"
 
-import { expect } from 'chai'
 import walk from '../src/main.js'
 
 
 
 describe ( 'Walk-async -> objectCallback function', () => {
 
-      it ( 'Object callback function only', () => {
-                let 
+      it ( 'Object callback function only', async () => {
+                let
                       x = {
                                 ls   : [ 1,2,3 ]
                               , name : 'Peter'
@@ -26,21 +25,19 @@ describe ( 'Walk-async -> objectCallback function', () => {
                             else                resolve ( value )
                       }
 
-                walk ( {
+                const r = await walk ( {
                             data : x
                           , objectCallback : oCallbackFn
-                      })
-                  .then ( r => {
-                            expect ( r.props ).to.not.have.property ( 'age'   )
-                            expect ( r.props ).to.not.have.property ( 'sizes' )
-                            expect ( r.props.eyeColor ).to.be.equal ( 'dark'  )
-                      })
+                      });
+                expect ( r.props ).not.toHaveProperty ( 'age'   )
+                expect ( r.props ).not.toHaveProperty ( 'sizes' )
+                expect ( r.props.eyeColor ).toBe ( 'dark'  )
       }) // it object callback
 
 
-      
-      it ( 'Object callback returns null', () => {
-                let 
+
+      it ( 'Object callback returns null', async () => {
+                let
                     x = {
                               ls   : [ 1,2,3 ]
                             , name : 'Peter'
@@ -55,22 +52,20 @@ describe ( 'Walk-async -> objectCallback function', () => {
                 function oCallbackFn ({ value:o, resolve, reject }) {
                           const { sizes } = o;
                           if ( sizes )   reject ()
-                          else           resolve (o) 
+                          else           resolve (o)
                       }
 
-                walk ({ 
+                const r = await walk ({
                           data : x
                         , objectCallback : oCallbackFn
-                    })
-                  .then ( r => {
-                        expect ( r ).to.not.have.property ( 'props' )
-                    })
+                    });
+                expect ( r ).not.toHaveProperty ( 'props' )
       }) // it object callback null
 
 
 
-      it ( 'Object callback returns a string', () => {
-                let 
+      it ( 'Object callback returns a string', async () => {
+                let
                     x = {
                               ls   : [ 1,2,3 ]
                             , name : 'Peter'
@@ -84,24 +79,22 @@ describe ( 'Walk-async -> objectCallback function', () => {
 
                 function oCallbackFn ({ value:o, resolve }) {
                           const { sizes } = o;
-                          if ( sizes )   resolve ( 'list' ) 
-                          else           resolve ( o ) 
+                          if ( sizes )   resolve ( 'list' )
+                          else           resolve ( o )
                       }
 
-                walk ({
+                const r = await walk ({
                           data: x
                         , objectCallback : oCallbackFn
-                      })
-                  .then ( r => {
-                          expect ( r ).to.have.property ( 'props' )
-                          expect ( r.props ).to.be.equal ( 'list' )
-                      })
+                      });
+                expect ( r ).toHaveProperty ( 'props' )
+                expect ( r.props ).toBe ( 'list' )
       }) // it object callback null
 
 
 
-      it ( 'Object callback changes the data', () => {
-                let 
+      it ( 'Object callback changes the data', async () => {
+                let
                     x = {
                               ls   : [ 1,2,3 ]
                             , name : 'Peter'
@@ -119,22 +112,20 @@ describe ( 'Walk-async -> objectCallback function', () => {
                           resolve ( o )
                       }
 
-                walk ({
+                const r = await walk ({
                           data : x
                         , objectCallback : oCallbackFn
-                    })
-                  .then ( r => {
-                          expect ( r ).to.have.property ( 'props' )
-                          expect ( r.props ).to.have.property ( 'sizes' )
-                          expect ( r.props.sizes ).to.have.length ( 1 )
-                          expect ( r.props.sizes[0]).to.be.equal ( 'list of sizes' )
-                    })
+                    });
+                expect ( r ).toHaveProperty ( 'props' )
+                expect ( r.props ).toHaveProperty ( 'sizes' )
+                expect ( r.props.sizes ).toHaveLength ( 1 )
+                expect ( r.props.sizes[0]).toBe ( 'list of sizes' )
       }) // it object callback changes the data
 
 
 
-      it ( 'Object callback checks key', () => {
-                let 
+      it ( 'Object callback checks key', async () => {
+                let
                     x = {
                               ls   : [ 1,2,3 ]
                             , name : 'Peter'
@@ -151,19 +142,17 @@ describe ( 'Walk-async -> objectCallback function', () => {
                           resolve ( o )
                       }
 
-                walk ({ 
+                const r = await walk ({
                           data: x
                         , objectCallback: oCallbackFn
-                      })
-                  .then ( r => {
-                          expect ( r ).to.not.have.property ( 'props' )
-                      })
+                      });
+                expect ( r ).not.toHaveProperty ( 'props' )
       }) // it Object callback checks key
 
 
 
-      it ( 'Object callback checks breadcrumbs', () => {
-                let 
+      it ( 'Object callback checks breadcrumbs', async () => {
+                let
                     x = {
                               ls   : [ 1,2,3 ]
                             , name : 'Peter'
@@ -177,22 +166,20 @@ describe ( 'Walk-async -> objectCallback function', () => {
 
                 function oCallbackFn ({ value:o, breadcrumbs, resolve, reject } ) {
                           if ( breadcrumbs === 'root/props' )   reject ()
-                          resolve ( o ) 
+                          resolve ( o )
                         }
 
-                walk ({
+                const r = await walk ({
                             data : x
                           , objectCallback : oCallbackFn
-                    })
-                  .then ( r => {
-                          expect ( r ).to.not.have.property ( 'props' )
-                    })
+                    });
+                expect ( r ).not.toHaveProperty ( 'props' )
         }) // it Object callback checks breadcrumbs
 
 
 
-      it ( 'Prevent array empty items', () => {
-                let 
+      it ( 'Prevent array empty items', async () => {
+                let
                     x = [
                               { id: 1 }
                             , { id: 2 }
@@ -200,24 +187,23 @@ describe ( 'Walk-async -> objectCallback function', () => {
                             , { id: 5 }
                         ];
 
-                function oCallbackFn ({ value:o, resolve, reject }) {
+                function oCallbackFn ({ key, value:o, resolve, reject }) {
+                          if ( key === 'root' )   return resolve ( o )   // keep the root container
                           if ( o.id === 5 )   resolve ( o )
                           reject ()
                       }
 
-                walk ({
+                const r = await walk ({
                           data : x
                         , objectCallback : oCallbackFn
-                    })
-                  .then ( r => {
-                        expect ( r.length ).to.be.equal ( 1 )
-                    })
+                    });
+                expect ( r.length ).toBe ( 1 )
       }) // it Prevent array empty items
 
 
 
-      it ( 'Prevent array empty items 2', () => {
-                let 
+      it ( 'Prevent array empty items 2', async () => {
+                let
                     x = [
                               [1]
                             , [2]
@@ -225,25 +211,24 @@ describe ( 'Walk-async -> objectCallback function', () => {
                             , [5]
                         ];
 
-                function oCallbackFn ({ value:o, resolve, reject }) {
+                function oCallbackFn ({ key, value:o, resolve, reject }) {
+                          if ( key === 'root' )   return resolve ( o )   // keep the root container
                           if ( o[0] === 5 )   resolve ( o )
                           reject ()
                       }
 
-                walk ({
+                const r = await walk ({
                           data : x
                         , objectCallback : oCallbackFn
-                    })
-                  .then ( r => {
-                          expect ( r.length ).to.be.equal ( 1 )
-                          expect ( r[0]     ).to.be.equal ( 5 )
-                    })
+                    });
+                expect ( r.length ).toBe ( 1 )
+                expect ( r[0][0]  ).toBe ( 5 )
           }) // it Prevent array empty items 2
 
 
 
-      it ( 'Set a object to NULL', done => {
-                 let 
+      it ( 'Set a object to NULL', async () => {
+                 let
                     x = {
                               ls   : [ 1,2,3 ]
                             , name : 'Peter'
@@ -254,23 +239,20 @@ describe ( 'Walk-async -> objectCallback function', () => {
                                         , sizes : [12,33,12,21]
                                     }
                             };
-                  
+
                   function objToNull ({value,key, resolve }) {
                             if ( key === 'props' )   resolve ( null )
                             else                     resolve (value)
                       } // objToNull func.
 
-                  walk ({ data:x, objectCallback:objToNull })
-                      .then ( r => {
-                                  expect ( r.props ).to.be.equal ( null )
-                                  done ()
-                          })
+                  const r = await walk ({ data:x, objectCallback:objToNull });
+                  expect ( r.props ).toBe ( null )
           }) // it Set a object to NULL
 
 
 
-      it ( 'Set a object to undefined', done => {
-                 let 
+      it ( 'Set a object to undefined', async () => {
+                 let
                     x = {
                               ls   : [ 1,2,3 ]
                             , name : 'Peter'
@@ -281,24 +263,21 @@ describe ( 'Walk-async -> objectCallback function', () => {
                                         , sizes : [12,33,12,21]
                                     }
                             };
-                  
+
                   function objToNull ({value,key, resolve }) {
                             if ( key === 'props' )   resolve ( undefined )
-                            else                     resolve ( value ) 
+                            else                     resolve ( value )
                       } // objToNull func.
 
-                  walk ({ data:x, objectCallback:objToNull })
-                    .then ( r => {
-                                expect ( r.props ).to.be.equal ( undefined )
-                                done ()
-                          })
+                  const r = await walk ({ data:x, objectCallback:objToNull });
+                  expect ( r.props ).toBe ( undefined )
           }) // it Set a object to undefined
 
 
 
-      it ( 'Root object callback', done => {
+      it ( 'Root object callback', async () => {
                  let hasRoot = false
-                 let 
+                 let
                     x = {
                               ls   : [ 1,2,3 ]
                             , name : 'Peter'
@@ -309,27 +288,24 @@ describe ( 'Walk-async -> objectCallback function', () => {
                                         , sizes : [12,33,12,21]
                                     }
                             };
-                  
+
                   function objToNull ({value,key, resolve, breadcrumbs }) {
                             if ( breadcrumbs === 'root' ) {
                                     hasRoot = true
                                     resolve ( value )
                                 }
                             if ( key === 'props' )   resolve ( undefined )
-                            else                     resolve ( value ) 
+                            else                     resolve ( value )
                       } // objToNull func.
 
-                  walk ({ data:x, objectCallback:objToNull })
-                    .then ( r => {
-                                expect ( r.props ).to.be.equal ( undefined )
-                                expect ( hasRoot ).to.be.equal ( true )
-                                done ()
-                          })
+                  const r = await walk ({ data:x, objectCallback:objToNull });
+                  expect ( r.props ).toBe ( undefined )
+                  expect ( hasRoot ).toBe ( true )
           }) // it Root object callback
 
 
 
-      it ( 'Object callback replaces root with a string', done => {
+      it ( 'Object callback replaces root with a string', async () => {
                   const x = { a: 1 };
 
                   function oCallbackFn ({ resolve, value, key }) {
@@ -337,16 +313,13 @@ describe ( 'Walk-async -> objectCallback function', () => {
                             resolve ( value )
                       }
 
-                  walk ({ data:x, objectCallback: oCallbackFn })
-                    .then ( r => {
-                                expect ( r ).to.be.equal ( 'list' )
-                                done ()
-                          })
+                  const r = await walk ({ data:x, objectCallback: oCallbackFn });
+                  expect ( r ).toBe ( 'list' )
           }) // it Object callback replaces root with a string
 
 
 
-      it ( 'Object callback replaces root with null', done => {
+      it ( 'Object callback replaces root with null', async () => {
                   const x = { a: 1 };
 
                   function oCallbackFn ({ resolve, value, key }) {
@@ -354,16 +327,13 @@ describe ( 'Walk-async -> objectCallback function', () => {
                             resolve ( value )
                       }
 
-                  walk ({ data:x, objectCallback: oCallbackFn })
-                    .then ( r => {
-                                expect ( r ).to.be.equal ( null )
-                                done ()
-                          })
+                  const r = await walk ({ data:x, objectCallback: oCallbackFn });
+                  expect ( r ).toBe ( null )
           }) // it Object callback replaces root with null
 
 
 
-      it ( 'Object callback rejects root', done => {
+      it ( 'Object callback rejects root', async () => {
                   const x = { a: 1 };
 
                   function oCallbackFn ({ resolve, reject, key }) {
@@ -371,15 +341,10 @@ describe ( 'Walk-async -> objectCallback function', () => {
                             resolve ( x )
                       }
 
-                  walk ({ data:x, objectCallback: oCallbackFn })
-                    .then ( r => {
-                                expect ( r ).to.deep.equal ({})
-                                done ()
-                          })
+                  const r = await walk ({ data:x, objectCallback: oCallbackFn });
+                  expect ( r ).toEqual ({})
           }) // it Object callback rejects root
 
 
-      
+
 }) // describe
-
-
