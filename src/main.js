@@ -124,8 +124,22 @@ function findType ( x ) {
     if ( x == null              )   return 'simple' // null and undefined
     if ( x.nodeType             )   return 'simple' // DOM node
     if ( x instanceof Array     )   return 'array'
-    if ( typeof x === 'object'  )   return 'object'
-    return 'simple' // number, bigint, string, boolean, symbol, function 
+    if ( typeof x === 'object'  ) {
+        // Built-in object types whose data lives outside the own-enumerable-string-key
+        // model that walk uses. Treated as 'simple' so the value is preserved by
+        // reference (same contract as functions and DOM nodes).
+        if ( x instanceof Date        )   return 'simple'
+        if ( x instanceof RegExp      )   return 'simple'
+        if ( x instanceof Map         )   return 'simple'
+        if ( x instanceof Set         )   return 'simple'
+        if ( x instanceof WeakMap     )   return 'simple'
+        if ( x instanceof WeakSet     )   return 'simple'
+        if ( x instanceof ArrayBuffer )   return 'simple'
+        if ( x instanceof DataView    )   return 'simple'
+        if ( ArrayBuffer.isView ( x ) )   return 'simple' // Typed arrays (Uint8Array, Float32Array, ...)
+        return 'object'
+    }
+    return 'simple'   // number, bigint, string, boolean, symbol, function
  } // findType func.
 
 
@@ -202,10 +216,15 @@ function copyObject ( origin, result, extend, cb, breadcrumbs, ...args ) {
                                                 item = res
                                                 type = findType ( item )
                                             }
-                                        if ( item == IGNORE     ) {  
+                                        if ( item == IGNORE     ) {
+                                                // Object callback rejected this key. Skip the rest of
+                                                // the per-key chain; resolve the remaining tasks so
+                                                // nothing leaks.
                                                 executeCallback.promises[i].done ( 'ignore object' )
+                                                keyCallbackTask.done    ( '$$cancel' )
+                                                finishWithCallbacks.done ()
                                                 return
-                                            }                                        
+                                            }
                                         if ( type === 'simple' ) {
                                                     if ( !keyCallback ) { 
                                                             keyCallbackTask.done ( '$$noUpdates' )
@@ -228,7 +247,10 @@ function copyObject ( origin, result, extend, cb, breadcrumbs, ...args ) {
                     keyCallbackTask.onComplete ( value => {
                                         pending.delete ( keyTag )
                                         if ( value == IGNORE ) {
+                                                    // Key callback rejected this key. Finish the
+                                                    // per-key chain so finishWithCallbacks doesn't leak.
                                                     executeCallback.promises[i].done ( 'ignore key' )
+                                                    finishWithCallbacks.done ()
                                                     return
                                             }
                                         if ( value === '$$cancel' ) { 
