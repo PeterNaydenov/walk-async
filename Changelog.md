@@ -2,6 +2,12 @@
 
 
 
+### 3.1.2 (2026-07-19)
+- [x] Fix: built-in object types whose data lives outside the own-enumerable-string-key model (`Date`, `RegExp`, `Map`, `Set`, `WeakMap`, `WeakSet`, `ArrayBuffer`, `DataView`, and all `TypedArray` subclasses) used to be classified as a plain `object` by `findType` and ended up as an empty `{}` in the result. They are now classified as `simple` and preserved by reference, matching the contract already used for `function` values and DOM nodes. Note: this changes the observable shape of the result when a property holds one of these types — the value is now the same reference as the input, not a plain-object copy;
+- [x] Fix: the per-key `finishWithCallbacks` task (and, for the `objectCallback` path, the `keyCallbackTask`) was left unresolved when a callback called `reject()` to skip the key. The walk still completed because the outer `executeCallback` was signalled, but the internal tasks lingered. Both now resolve on the `IGNORE` paths so nothing leaks. Note: behavior of the walk itself is unchanged — these are the same outcomes, just with a clean chain;
+
+
+
 ### 3.1.1 (2026-07-12)
 - [x] Moving to typescript v.7.x.x;
 - [x] Changing 'mocha' testing library with vitest;
