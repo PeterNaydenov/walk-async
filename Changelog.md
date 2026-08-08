@@ -2,6 +2,25 @@
 
 
 
+### 6.0.0 (2026-08-08)
+- [x] Allign version numbers with `@peter.naydenov/walk`. We jumping from 3.1.3 to 6.0.0;
+- [x] Types: Tighten callback signatures in `types/main.d.ts`. `keyCallback` and `objectCallback` are now typed as `KeyCallback` / `ObjectCallback` over a `CallbackArgs` shape (`value`, `key`, `breadcrumbs`, `resolve`, `reject`); `resolve` and `reject` are exported as `Resolve` / `Reject` types so TypeScript users get autocomplete. Driven from JSDoc in `src/main.js`; regenerate with `npm run build`;
+- [x] Docs: Reframe the lead paragraph so the deep copy reads as a side-effect and the callback-driven modifications as the headline;
+- [x] Docs: Add a "When to use `walk-async` vs `structuredClone`" callout that points to the sync sibling `@peter.naydenov/walk` for the no-async case;
+- [x] Docs: Add a "Built-in types" subsection that documents how `Date`, `RegExp`, `Map`, `Set`, `WeakMap`, `WeakSet`, `ArrayBuffer`, `DataView`, typed arrays, DOM nodes, and functions are passed by reference;
+- [x] Docs: Tighten the `objectCallback` section to enumerate the three return-value outcomes (resolve with object/array, resolve with primitive, `reject()`);
+- [x] Docs: Rewrite the "keyCallback" section with the three-outcome return contract, replacing the misleading "value: Only primitives" comment;
+- [x] Docs: Add a "Skip a branch" subsection that documents calling `reject()` from `objectCallback` to drop an entire subtree;
+- [x] Docs: Reframe the `keyCallback` intro so "forEach" is the central concept, not a secondary use case;
+- [x] Docs: Add a "Why one callback, not a list of methods" section that explains the single-pass architecture (matters more for async — extra passes multiply awaited I/O cost) and points users toward callback factories;
+- [x] Docs: Add an "Order of execution" section that makes the key invariants visible up front (level-internal key order, deferred nested walks, `objectCallback` before `keyCallback`, root behavior, concurrent key starts);
+- [x] Docs: Add a "Migrating from `@peter.naydenov/walk`" section with a side-by-side mapping table (`return value` → `resolve(value)`, `return IGNORE` → `reject()`, etc.) so the sync→async move is mechanical;
+- [x] Docs: Align the section ordering with `@peter.naydenov/walk` (Order of execution → callbacks → Why one callback → Installation → How to use it → Migrating → Timeout → Limitations → See also);
+- [x] Docs: Add a "See also" block that explicitly positions `walk-async` next to its sync sibling;
+- [x] Tests: Add 9 tests in `test/02-keyCallback.test.js` covering plain-object resolution, array resolution, `Date` / `Map` passed by reference, `reject()` drops, order preservation, primitive leaf, and full nested walk with arrays;
+
+
+
 ## 3.1.3 (2026-07-31)
 - [x] Dependencies updates. Ask-for-promise to version 3.2.0;
 
