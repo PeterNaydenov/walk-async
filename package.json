@@ -2,19 +2,29 @@
   "name": "@peter.naydenov/walk-async",
   "version": "6.0.0",
   "description": "Deep copy with fine control during the process. Can be used also as a deep forEach function",
-  "main": ".dist/walk-async.umd.js",
+  "main": "./dist/walk-async.umd.js",
   "type": "module",
   "types": "./types/main.d.ts",
   "exports": {
     ".": {
-      "import": "./.dist/walk-async.esm.mjs",
-      "require": "./.dist/walk-async.cjs",
+      "import": "./dist/walk-async.esm.mjs",
+      "require": "./dist/walk-async.cjs",
       "default": "./dist/walk-async.umd.js"
     },
     "./package.json": "./package.json",
     "./dist/*": "./dist/*",
     "./src/*": "./src/*"
   },
+  "files": [
+    "dist",
+    "src",
+    "types",
+    "README.md",
+    "Changelog.md",
+    "Migration.guide.md",
+    "LICENSE",
+    ".agents/skills"
+  ],
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
