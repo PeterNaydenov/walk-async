@@ -2,6 +2,13 @@
 
 
 
+### 6.1.0 (2026-09-01)
+- [x] Feature: Added a skill at `.agents/skills/git-walk-async/SKILL.md`;
+- [x] Packaging: Added `.agents/skills` to the `"files"` allow-list in `package.json` so the Mavis skill ships with the npm package. AI-agent users can discover the walk-async skill from `node_modules` directly, without needing access to the source repo. The same allow-list also drops the dev-only `rollup.config.js`, `tsconfig.json`, and `vitest.config.js` that were leaking under the previous `.npmignore`-only packaging;
+- [x] Docs: Prefilled `Migration.guide.md` for every major release: sync-`@peter.naydenov/walk` → `walk-async` (the README's "Migrating from `@peter.naydenov/walk`" table, folded in), v3.x → v6.x (callback signatures tightened with exported `Resolve` / `Reject` typedefs), v3.0.x → v3.1.x (the `timeout` option, the built-in-type pass-by-reference fix from v3.1.2, and the v3.0.6/v3.0.7 root-callback bug fixes), the existing v2.x → v3.x root-callback entry, v1.x → v2.x (ES module + `dist` + `exports`), and v1.0.0 → v1.x (the early null/undefined, DOM-node, and collection-container fixes). The README still has a copy of the sync-`walk` → `walk-async` table — flag for a follow-up if you want the README trimmed to a one-liner pointer so the docs aren't split across two files;
+
+
+
 ### 6.0.0 (2026-08-08)
 - [x] Allign version numbers with `@peter.naydenov/walk`. We jumping from 3.1.3 to 6.0.0;
 - [x] Types: Tighten callback signatures in `types/main.d.ts`. `keyCallback` and `objectCallback` are now typed as `KeyCallback` / `ObjectCallback` over a `CallbackArgs` shape (`value`, `key`, `breadcrumbs`, `resolve`, `reject`); `resolve` and `reject` are exported as `Resolve` / `Reject` types so TypeScript users get autocomplete. Driven from JSDoc in `src/main.js`; regenerate with `npm run build`;
