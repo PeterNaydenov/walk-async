@@ -2,7 +2,7 @@
 name: git-walk-async
 description: |
   Help developers use `@peter.naydenov/walk-async` (the async `walk` from
-  the git-walk-async project, v6.0.0): write a deep copy with `await
+  the git-walk-async project, v6.1.0): write a deep copy with `await
   walk({ data, keyCallback?, objectCallback?, timeout? })`, use the
   `resolve` / `reject` pair inside callbacks to store or drop values, and
   leverage the `timeout` option as a debugging safety net. Use when the
@@ -71,7 +71,7 @@ Source of truth:
    - **Callbacks must call `resolve` or `reject` on every code path.** A path that returns early or `throw`s without calling either will leave the walk promise pending forever. Either wire every path explicitly, or set `timeout` during development to surface these as a clear rejection with breadcrumbs of the stuck callbacks.
    - **Don't `await walk-async` from inside a callback.** That's the first item on the Limitations list in the README — it corrupts the in-progress walk. If you need recursion, let the library handle it by `resolve`-ing a plain object/array from the callback.
    - **Built-in types are not walked.** `Date`, `RegExp`, `Map`, `Set`, `WeakMap`, `WeakSet`, `ArrayBuffer`, `DataView`, typed arrays, DOM nodes, and functions are passed by reference. If the user wants a deep clone of a `Map`/`Set`/typed array, recommend `structuredClone` for that subtree, or do it themselves before calling `walk-async`.
-   - **`'simple'` is the storage type, not the return type.** A plain object or array resolved from `keyCallback` is re-typed and walked into (deferred). A `Date` resolved from `keyCallback` is `'simple'` and stored by reference. This is the v6.0.0 contract.
+   - **`'simple'` is the storage type, not the return type.** A plain object or array resolved from `keyCallback` is re-typed and walked into (deferred). A `Date` resolved from `keyCallback` is `'simple'` and stored by reference. This is the v6.1.0 contract.
 
 5. **If the request is "I just need a deep clone with no transforms"** (or the user doesn't actually need async), point them at `structuredClone` first (built into the platform, no dependency, no promise), and mention the sync `walk` as a fallback. Only use `walk-async` when real async I/O is happening inside the callbacks.
 
