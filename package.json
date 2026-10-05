@@ -7,6 +7,7 @@
   "types": "./types/main.d.ts",
   "exports": {
     ".": {
+      "types": "./types/main.d.ts",
       "import": "./dist/walk-async.esm.mjs",
       "require": "./dist/walk-async.cjs",
       "default": "./dist/walk-async.umd.js"
