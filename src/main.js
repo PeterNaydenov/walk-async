@@ -1,28 +1,31 @@
+"use strict"
 
 /**
- *     walk-async
+ *     Walk-async
  *
- *     Alternative of deep-copy that provides much better control during creation of immutable
- *     copies of javascript data structures.
- *     Library is using 'generator functions'. If support for old browsers is required,
- *     add a polyfill for 'generators'.
+ *     Walk through javascript data structures with callbacks for transforming values,
+ *     controlling traversal, and optionally building a copy.
+ *     Nested containers are processed iteratively through a work queue.
  *
  *     History notes:
  *        - Walk-async was born on September 18th, 2022
  *        - Converted to ES module on January 1st, 2024
- *
  */
 
 
-import askForPromise from "ask-for-promise"
+
+import findType    from "./findType.js";
+import copyObject from "./copyObject.js";
+import createCallbackArgs from "./createCallbackArgs.js";
+import PASS, { isPass } from "./pass.js";
+import IGNORE, { isIgnore } from "./ignore.js";
+import runCallback from "./runCallback.js";
+import { isFinish } from "./finish.js";
+
 
 /**
- *  Resolve the callback with the new value to store at the current key:
- *    - resolving a primitive (or a built-in like `Date` / `Map` / `Set`) → stored as-is by reference;
- *    - resolving a plain object or array → walk continues into it with the other callback applied to its children;
- *
- *  You must call `resolve` or `reject` on every code path — otherwise the walk promise never settles
- *  (use the `timeout` option to turn that silent hang into a rejection with diagnostics).
+ *  Explicitly settle a callback with its current value or a replacement.
+ *  Promises supplied to resolve are awaited before traversal continues.
  *
  *  @callback Resolve
  *  @param {*} value
@@ -30,7 +33,8 @@ import askForPromise from "ask-for-promise"
  */
 
 /**
- *  Reject the callback. The current key is dropped from the result.
+ *  Drop the current key or entire branch. Retained for v6 callbacks.
+ *  To reject the walk itself, throw or return a rejected promise.
  *
  *  @callback Reject
  *  @param {*} [reason]
@@ -38,333 +42,274 @@ import askForPromise from "ask-for-promise"
  */
 
 /**
- *  Arguments object received by both `keyCallback` and `objectCallback`.
+ *  Private sentinel returned by IGNORE().
+ *
+ *  @typedef {symbol} IgnoreToken
+ */
+
+/**
+ *  Call and return the result to drop the current key or entire branch.
+ *
+ *  @callback IgnoreFunction
+ *  @returns {IgnoreToken}
+ */
+
+/**
+ *  Call with no arguments to keep the current value, or pass a replacement.
+ *  Supplied replacement promises are awaited before traversal continues.
+ *  Return the instruction from `objectCallback` to skip `keyCallback` on
+ *  its immediate properties. Nested objects and arrays continue normally.
+ *
+ *  @callback PassFunction
+ *  @param {*} [value]
+ *  @returns {import('./pass.js').PassInstruction}
+ */
+
+/**
+ *  Stop the walk, optionally including a final value or branch.
+ *  Supplied replacement promises are awaited before traversal continues.
+ *
+ *  @callback FinishFunction
+ *  @param {*} [value]
+ *  @returns {import('./finish.js').FinishInstruction}
+ */
+
+/**
+ *  Shared arguments received by `keyCallback` and `objectCallback`.
  *
  *  @typedef {object} CallbackArgs
  *  @property {*}          value        - The current value being processed.
  *  @property {string}     key          - Property key as a string.
- *  @property {string}     breadcrumbs  - Slash-delimited path to the current key, starting with `root` (e.g. `"root/props/age"`).
- *  @property {Resolve}    resolve      - Resolve the callback with the new value (see `Resolve` typedef).
- *  @property {Reject}     reject       - Reject the callback to drop the current key (see `Reject` typedef).
+ *  @property {string}     [breadcrumbs] - Slash-delimited path including the current key. Absent when `settings.breadcrumbs` is false.
+ *  @property {ReadonlyArray<string>} [parentPath] - Read-only path to the parent, excluding the current key. Absent when `settings.parentPath` is false.
+ *  @property {Resolve} resolve - Reading this field opts into explicit settlement with resolve(value) or reject().
+ *  @property {Reject} reject - Drop the current key or branch; does not reject the walk promise.
+ *  @property {FinishFunction} FINISH - Return FINISH() to omit the current value and stop, or FINISH(value) to include a final value or branch.
+ *  @property {IgnoreFunction} IGNORE   - Return IGNORE() from the callback to drop the current key from the result.
  */
 
 /**
- *  Called once per primitive property (string, number, bigint, boolean,
+ *  @typedef {CallbackArgs & { isFinished: boolean }} KeyCallbackArgs
+ */
+
+/**
+ *  @typedef {CallbackArgs & { PASS: PassFunction }} ObjectCallbackArgs
+ */
+
+/**
+ *  Called once per primitive property unless its immediate parent returns
+ *  `PASS()` or `PASS(value)` from `objectCallback`. Types: string, number, bigint, boolean,
  *  symbol, null, undefined, function, Date, RegExp, Map, Set, WeakMap,
- *  WeakSet, ArrayBuffer, DataView, typed arrays, DOM nodes).
+ *  WeakSet, ArrayBuffer, DataView, typed arrays, DOM nodes.
  *
- *  Resolve with the new value to store, or reject to drop the key:
- *    - resolve a primitive (or a built-in like `Date` / `Map` / `Set`) → stored as-is by reference;
- *    - resolve a plain object or array → walk continues into it with the other callback applied to its children;
- *    - reject → that key is dropped from the result.
+ *  Return the new value to store, or `IGNORE()` to drop the key:
+ *    - return a primitive (or a built-in like `Date`/`Map`/`Set`) → stored as-is by reference;
+ *    - return a plain object or array → walk continues into it with the other callback applied to its children;
+ *    - return `IGNORE()` → that key is dropped from the result;
+ *    - return `FINISH()` → omit the current key and stop the entire walk;
+ *    - return `FINISH(value)` → include the supplied value directly and stop, without descending into it.
+ *  isFinished is true for keys in a final branch selected by objectCallback.
+ *  With settings.copy false, no values are stored; returned containers
+ *  still control what gets visited.
  *
  *  @callback KeyCallback
- *  @param {CallbackArgs} args
+ *  @param {KeyCallbackArgs} args
  *  @param {...*}         rest - Any extra arguments passed to `walk()` are forwarded to the callback.
- *  @returns {void}
+ *  @returns {* | Promise<*>}
  */
 
 /**
  *  Called once per object or array property, including the root.
- *  The resolved value becomes the new value at that key:
- *    - resolve an object or array → walk continues into it with the other callbacks applied to its children;
- *    - resolve a primitive        → it is stored at that key as-is, and walk does not descend into it (primitives have no children to walk);
- *    - reject                     → the key is dropped from the result.
+ *  The returned value becomes the new value at that key:
+ *    - return an object or array → walk continues into it with the other callbacks;
+ *    - return a primitive        → passed to `keyCallback` when active, otherwise stored as-is;
+ *    - return `IGNORE()`         → the key is dropped from the result.
+ *    - return `PASS()`           → keep the current object/array without its immediate key callbacks; nested callbacks continue normally.
+ *    - return `PASS(value)`      → use the replacement with the same rule; simple replacements are stored directly.
+ *    - return `FINISH()`         → omit the branch and stop the entire walk.
+ *    - return `FINISH(value)`    → process only the final branch with keyCallback and isFinished true, suppressing later object callbacks; without keyCallback, include it directly.
+ *  With settings.copy false, returned values control traversal without
+ *  being stored in a result or assigned to the source.
  *
  *  @callback ObjectCallback
- *  @param {CallbackArgs} args
+ *  @param {ObjectCallbackArgs} args
  *  @param {...*}         rest
- *  @returns {void}
+ *  @returns {* | Promise<*>}
+ */
+
+/**
+ *  @typedef {object} Settings
+ *  @property {boolean} [copy]        - Defaults to true. Only false disables result creation; callbacks still run and walk resolves undefined.
+ *  @property {boolean} [breadcrumbs] - Defaults to true. Only false disables breadcrumbs preparation.
+ *  @property {boolean} [parentPath]  - Defaults to true. Only false disables parent-path preparation.
+ *  @property {boolean} [detectCycles] - Defaults to true. Only false disables circular-reference checks and their bookkeeping; visited data and replacements must then be acyclic or callbacks must prune cyclic branches.
  */
 
 /**
  *  @typedef {object} Options
- *  @property {*}             data           - Required. Any JS data structure that will be copied.
+ *  @property {*}             data           - Required. Any JS data structure that will be walked.
  *  @property {KeyCallback}    [keyCallback]    - Optional. Executed on each primitive property.
  *  @property {ObjectCallback} [objectCallback] - Optional. Executed on each object/array property, including the root.
- *  @property {number}         [timeout]         - Optional. Milliseconds. When set, the promise is rejected if callbacks do not resolve in time. Error lists the pending callbacks.
+ *  @property {number}         [timeout] - Optional milliseconds. Reject the walk with pending-callback diagnostics when time expires.
+ *  @property {Settings}       [settings]       - Optional. Disable copying, unused callback metadata, or cycle detection with false.
  */
 
 
 /**
  *  Walk-async
  *
- *  Async sibling of `@peter.naydenov/walk`. Visits every member of a deep
- *  JavaScript data structure once, in a single pass, and runs two optional
- *  callbacks during the visit that can mask, filter, or substitute values
- *  as the result is built.
- *
- *  The deep copy of the original data is mostly a side-effect: the real
- *  power is the ability to do all your modifications in one pass, with full
- *  freedom inside a single callback — now with async work, awaits, and
- *  timeouts supported.
+ *  Walks through a deep JavaScript data structure, building a copy by default.
+ *  Two optional callbacks can mask, filter, substitute, or collect values.
+ *  Callback results are awaited in traversal order; thrown errors and rejected promises reject the walk.
+ *  Set settings.copy to false to walk without building a result.
+ *  By default, circular references point to the ancestor copy without visiting its contents again.
  *
  *  @function walk
- *  @param {Options} options   - Required. Object with required `data` property, two optional callback functions (`keyCallback`, `objectCallback`), and an optional `timeout`.
+ *  @param {Options} options   - Required. Object with `data`, optional callbacks, and optional `settings`.
  *  @param {...*}    args      - Optional. Additional arguments forwarded to both callbacks.
- *  @returns {Promise<*>}      - A promise that resolves to the immutable copy of `options.data` (with the callbacks' transformations applied).
+ *  @returns {Promise<*>}      - Resolves to the created result, or undefined when settings.copy is false.
  *  @example
- *  const result = await walk ({
+ *  let result = await walk ({
  *      data: someData,
  *      keyCallback:    keyCallbackFn,
  *      objectCallback: objectCallbackFn
  *  })
+ *
+ *  // Note: objectCallback is executed before keyCallback.
+ *  // If you modify an object with objectCallback, keyCallback will be
+ *  // executed on the result of objectCallback.
  */
-function walk ({
-                  data:origin
-                , objectCallback = null
-                , keyCallback = null
-                , timeout = null
-            }, ...args ) {
-    let
-          type = findType ( origin )
-        , result
-        , extend = []
-        , breadcrumbs = 'root'
-        , pending = new Set ()   // Callbacks in flight. Read on timeout to report which ones never resolved.
-        , cb = [ keyCallback, objectCallback, pending ]
-        , end = askForPromise ()
-        , rootTask = askForPromise ()
-        , IGNORE = Symbol ( 'ignore___' )
-        ;
+async function walk (options,...args) {
+    const pending = new Set ();
+    const task = traverse ( options, pending, ...args );
+    if ( options.timeout == null )   return task
 
-    if ( type !== 'simple' && objectCallback ) {   // Root object callback. Executed before the result is allocated, so it can replace the root with anything.
-            pending.add ( `objectCallback at 'root'` )
-            objectCallback ({
-                          resolve : rootTask.done
-                        , reject  : () => rootTask.done ( IGNORE )
-                        , value : origin
-                        , key   : 'root'
-                        , breadcrumbs
-                }, ...args )
+    let timer;
+    const guard = new Promise ( ( resolve, reject ) => {
+            timer = setTimeout ( () => {
+                    const stuck = [...pending].map ( name => `\n  - ${name}` ).join ( '' );
+                    reject ( new Error ( `walk-async: timed out after ${options.timeout}ms; callbacks still pending:${stuck}` ) )
+                }, options.timeout )
+        })
+    try {
+            return await Promise.race ([ task, guard ])
         }
-    else    rootTask.done ( origin )
-
-    rootTask.onComplete ( item => {
-            pending.delete ( `objectCallback at 'root'` )
-            if ( item === IGNORE ) {
-                    end.done ( ( type === 'array' ) ? [] : {} )
-                    return
-                }
-            switch ( findType ( item ) ) {
-                    case 'array'  :
-                                        result = []
-                                        copyObject ( item, result, extend, cb, breadcrumbs, ...args )
-                                            .then ( () => goNext ( extend, result, end ))
-                                        break
-                    case 'object' :
-                                        result = {}
-                                        copyObject ( item, result, extend, cb, breadcrumbs, ...args )
-                                            .then ( () => {
-                                                    goNext ( extend, result, end )
-                                                })
-                                        break
-                    case 'simple' :
-                                        end.done ( item )
-                } // switch type
-        })
-
-    if ( timeout == null )   return end.promise
-
-    const   // Watchdog. 'end.timeout' races 'end.onComplete' against a timer, but leaves 'end.promise' untouched — so return a guard promise fed from the race instead.
-          EXPIRED = Symbol ( 'expired___' )
-        , guard = askForPromise ()
-        ;
-    end.timeout ( timeout, EXPIRED )
-    end.onComplete ( res => {
-            if ( res !== EXPIRED ) {   guard.done ( res );   return   }
-            const stuck = [...pending].map ( name => `\n  - ${name}` ).join ( '' )
-            guard.cancel ( new Error ( `walk-async: timed out after ${timeout}ms; callbacks still pending:${stuck}` ) )
-        })
-    return guard.promise
+    finally {
+            clearTimeout ( timer )
+        }
 } // walk func.
 
 
 
-async function goNext ( extend, result, end ) {
-    for await ( const plus of extend ) { 
-            await plus.next () 
-        }
-    end.done ( result )
-} // goNext func.
-
-
-
-function findType ( x ) {
-    if ( x == null              )   return 'simple' // null and undefined
-    if ( x.nodeType             )   return 'simple' // DOM node
-    if ( x instanceof Array     )   return 'array'
-    if ( typeof x === 'object'  ) {
-        // Built-in object types whose data lives outside the own-enumerable-string-key
-        // model that walk uses. Treated as 'simple' so the value is preserved by
-        // reference (same contract as functions and DOM nodes).
-        if ( x instanceof Date        )   return 'simple'
-        if ( x instanceof RegExp      )   return 'simple'
-        if ( x instanceof Map         )   return 'simple'
-        if ( x instanceof Set         )   return 'simple'
-        if ( x instanceof WeakMap     )   return 'simple'
-        if ( x instanceof WeakSet     )   return 'simple'
-        if ( x instanceof ArrayBuffer )   return 'simple'
-        if ( x instanceof DataView    )   return 'simple'
-        if ( ArrayBuffer.isView ( x ) )   return 'simple' // Typed arrays (Uint8Array, Float32Array, ...)
-        return 'object'
-    }
-    return 'simple'   // number, bigint, string, boolean, symbol, function
- } // findType func.
-
-
-
-async function* generateList ( data, location, ex, cb, breadcrumbs, args ) {
-    yield await copyObject ( data , location, ex, cb, breadcrumbs, ...args )
-} // generateList func.
-
-
-function validateForInsertion ( k, result ) {
-    const inArray = result instanceof Array;
-    if ( !inArray )   return false
-    const isNumber = !isNaN ( k );
-    if ( isNumber )   return true
-    else              return false
-} // insertInArray func.
-
-
-
-// Plain assignment of a '__proto__' key triggers the inherited setter and
-// replaces the prototype of 'target' instead of creating an own property.
-function setKey ( target, k, value ) {
-    if ( k === '__proto__' )   Object.defineProperty ( target, k, { value, enumerable:true, writable:true, configurable:true })
-    else                       target[k] = value
-} // setKey func.
-
-
-
-function copyObject ( origin, result, extend, cb, breadcrumbs, ...args ) {
+async function traverse ( options, pending, ...args ) {
     let
-          [ keyCallback, objectCallback, pending ] = cb
-        , keys = Object.keys ( origin )
-        , executeCallback = askForPromise ( keys )
-        , finish = askForPromise ()
+          { data:origin, keyCallback, objectCallback, settings:config } = options
+        , type = findType ( origin )
+        , result
+        , extend = []
+        , ancestors
+        , parent
+        , hasCallbacks = !!( keyCallback || objectCallback )
+        , settings = {
+                          copy         : config?.copy !== false
+                        , breadcrumbs  : hasCallbacks && config?.breadcrumbs !== false
+                        , parentPath   : hasCallbacks && config?.parentPath !== false
+                        , detectCycles : config?.detectCycles !== false
+                    }
+        , breadcrumbs = settings.breadcrumbs ? 'root' : undefined
+        , parentPath = settings.parentPath && type !== 'simple' ? Object.freeze ([ 'root' ]) : undefined
+        , pass = false
+        , control = { finished:false, isFinished:false, restart:false }
+        , cb = [ keyCallback, objectCallback ]
         ;
-        
-    keys.forEach ( (k,i) => {
-                    let 
-                          type = findType(origin[k])
-                        , item  = origin[k]
-                        , hasObjectCallback  = ( type !== 'simple' && objectCallback != null )
-                        , objectCallbackTask = askForPromise ()
-                        , keyCallbackTask    = askForPromise ()
-                        , finishWithCallbacks     = askForPromise ()
-                        , resultIsArray = (findType (result) === 'array') 
-                        , keyNumber = !isNaN ( k )
-                        , IGNORE = Symbol ( 'ignore___' )
-                        , br = `${breadcrumbs}/${k}`
-                        , objectTag = `objectCallback at '${br}'`
-                        , keyTag    = `keyCallback at '${br}'`
-                        ;
 
-                    if ( hasObjectCallback ) {
-                                        pending.add ( objectTag )
-                                        objectCallback  ({
-                                                              resolve : objectCallbackTask.done
-                                                            , reject  : () => objectCallbackTask.done ( IGNORE )
-                                                            , value : item
-                                                            , key   : k  
-                                                            , breadcrumbs : br
-                                                }, ...args )
+    if ( type !== 'simple' && objectCallback ) {   // Root object callback. Executed before the result is allocated, so it can replace the root with anything.
+            const rootParent = settings.parentPath ? Object.freeze ( [] ) : undefined
+            const callbackArgs = createCallbackArgs ( origin, 'root', IGNORE, breadcrumbs, rootParent, settings )
+            callbackArgs.PASS = PASS
+            const replacement = await runCallback ( objectCallback, callbackArgs, pending, 'objectCallback', ...args )
+            if ( isFinish ( replacement ) ) {
+                    if ( !replacement.hasValue ) {
+                            if ( !settings.copy )   return
+                            return ( type === 'array' ) ? [] : {}
                         }
-                    else {
-                                        objectCallbackTask.done ( '$$cancel' )
-                        }
+                    if ( !keyCallback )   return settings.copy ? replacement.value : undefined
+                    control.isFinished = true
+                    origin = replacement.value
+                }
+            else if ( isIgnore ( replacement ) ) {
+                    if ( !settings.copy )   return
+                    return ( type === 'array' ) ? [] : {}
+                }
+            else if ( isPass ( replacement ) ) {
+                    pass = true
+                    if ( replacement.hasValue )   origin = replacement.value
+                }
+            else    origin = replacement
+            type = findType ( origin )
+        }
 
-                    objectCallbackTask.onComplete ( res => {
-                                        pending.delete ( objectTag )
-                                        if ( res === '$$cancel' && !keyCallback ) {   // deep copy, no callbacks
-                                                 keyCallbackTask.done ( '$$noUpdates' )
-                                                 return
-                                            }
-                                        if ( res !== '$$cancel' ) {  
-                                                item = res
-                                                type = findType ( item )
-                                            }
-                                        if ( item == IGNORE     ) {
-                                                // Object callback rejected this key. Skip the rest of
-                                                // the per-key chain; resolve the remaining tasks so
-                                                // nothing leaks.
-                                                executeCallback.promises[i].done ( 'ignore object' )
-                                                keyCallbackTask.done    ( '$$cancel' )
-                                                finishWithCallbacks.done ()
-                                                return
-                                            }
-                                        if ( type === 'simple' ) {
-                                                    if ( !keyCallback ) { 
-                                                            keyCallbackTask.done ( '$$noUpdates' )
-                                                            return
-                                                        }
-                                                    pending.add ( keyTag )
-                                                    keyCallback ({
-                                                                  resolve  : keyCallbackTask.done
-                                                                , reject   : () => keyCallbackTask.done ( IGNORE )
-                                                                , value : item
-                                                                , key   : k
-                                                                , breadcrumbs : br
-                                                            }, ...args );
-                                            }
-                                        else {
-                                                    keyCallbackTask.done ( '$$cancel' )
-                                            }
-                        }) // objectCallbackTask complete
+    switch ( type ) {
+            case 'array'  :
+                                result = settings.copy ? [] : undefined
+                                parent = await copyObject ( origin, result, extend, cb, breadcrumbs, settings, control, parentPath, pass, undefined, ancestors, pending, ...args )
+                                break
+            case 'object' :
+                                result = settings.copy ? {} : undefined
+                                parent = await copyObject ( origin, result, extend, cb, breadcrumbs, settings, control, parentPath, pass, undefined, ancestors, pending, ...args )
+                                break
+            case 'simple' :
+                                return settings.copy ? origin : undefined
+        } // switch type
 
-                    keyCallbackTask.onComplete ( value => {
-                                        pending.delete ( keyTag )
-                                        if ( value == IGNORE ) {
-                                                    // Key callback rejected this key. Finish the
-                                                    // per-key chain so finishWithCallbacks doesn't leak.
-                                                    executeCallback.promises[i].done ( 'ignore key' )
-                                                    finishWithCallbacks.done ()
-                                                    return
-                                            }
-                                        if ( value === '$$cancel' ) { 
-                                                    finishWithCallbacks.done ()
-                                                    return
-                                            }
-                                        if ( value !== '$$noUpdates' ) {
-                                                    item = value
-                                                    type = findType ( item )                                            
-                                            }
-                                        if ( type === 'simple' ) {
-                                                    const canInsert = validateForInsertion ( k, result )
-                                                    if ( canInsert )  result.push ( item )
-                                                    else              setKey ( result, k, item )
-                                                    executeCallback.promises[i].done ('key')
-                                                    return
-                                            }
-                                            
-                                        finishWithCallbacks.done ()
-                        }) // keyCallbackTask complete
+    for ( let index = 0; index < extend.length && !control.finished; ) {
+            const job = extend[index];
+            extend[index] = undefined
+            control.restart = false
+            if ( settings.detectCycles )   ancestors = moveParents ( parent, job.parent, ancestors )
+            const path = settings.parentPath ? Object.freeze ([ ...job.parentPath, job.key ]) : undefined;
+            parent = await copyObject ( job.data, job.location, extend, cb, job.breadcrumbs, settings, control, path, job.pass, job.parent, ancestors, pending, ...args )
+            index = control.restart ? 0 : index + 1
+        }
+    return result
+} // traverse func.
 
-                    finishWithCallbacks.onComplete ( () => {
-                                        if ( type === 'object' ) {
-                                                    const newObject = {};
-                                                    if ( resultIsArray && keyNumber )   result.push ( newObject )
-                                                    else                                setKey ( result, k, newObject )
-                                                    extend.push ( generateList( item, newObject, extend, cb, br, args )   )
-                                                    executeCallback.promises[i].done ('object')
-                                            }
-                                        if ( type === 'array' ) {
-                                                    const newArray = [];
-                                                    if ( resultIsArray && keyNumber )   result.push ( newArray )
-                                                    else                                setKey ( result, k, newArray )
-                                                    extend.push ( generateList( item, newArray, extend, cb, br, args )   )
-                                                    executeCallback.promises[i].done ('array')
-                                            }
-                        })
-            }) // forEach k
-        executeCallback.onComplete ( r =>  finish.done ()   )
-        return finish.promise
-} // copyObject func.
+
+
+function moveParents ( current, target, ancestors ) {
+    // Shallow branches need only a short parent-chain scan. Queue order
+    // moves through increasing depths, so the lookup is built once.
+    if ( !ancestors ) {
+            if ( target.depth < 32 )   return
+            ancestors = new WeakMap()
+            for ( let parent = target; parent; parent = parent.parent ) {
+                    ancestors.set ( parent.data, parent )
+                }
+            return ancestors
+        }
+
+    const pending = [];
+
+    // Keep only the target branch's ancestors in the lookup. Both chains
+    // share the root, so they meet before either chain runs out.
+    while ( current !== target ) {
+            if ( current.depth >= target.depth ) {
+                    ancestors.delete ( current.data )
+                    current = current.parent
+                }
+            else {
+                    pending.push ( target )
+                    target = target.parent
+                }
+        }
+
+    for ( let index = pending.length - 1; index >= 0; index-- ) {
+            const parent = pending[index];
+            ancestors.set ( parent.data, parent )
+        }
+    return ancestors
+} // moveParents func.
 
 
 
 export default walk
-
-
