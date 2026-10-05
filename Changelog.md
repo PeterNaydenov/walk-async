@@ -1,6 +1,33 @@
 # Release History
 
 
+### 7.0.0 (2026-10-05)
+- [x] Docs: Update the skill;
+- [x] Feature: Added private `FINISH()` / `FINISH(value)` instructions to both callbacks. Omit and stop immediately without an argument; key callbacks include supplied values directly, while object callbacks select the final branch for key callbacks with `isFinished:true` and suppress further object callbacks. Promised payloads and explicit settlement are awaited; ordinary key callbacks receive `isFinished:false`;
+- [x] Tests: Ported 73 FINISH cases and 832 deterministic generated tests, covering 768 transformation settings cases and 384 early-finish combinations against an independent recursive reference. Added async FINISH settlement, payload, failure, timeout, distribution, and documentation checks;
+- [x] Benchmarks: Added fresh-process async memory measurements separating sampled extra heap, retained and released heap after GC, and process RSS high-water marks. Recorded actual async samples and methodology; excluded benchmarks from package contents;
+- [x] Docs: Added FINISH semantics, generated test methodology, measured memory use, and historical timing provenance. Updated the helper skill and regenerated FINISH declarations and distributions;
+- [x] Feature: Callbacks now accept ordinary returns and awaited promises, matching the synchronous API. Added callable `IGNORE()` to both callbacks; change synchronous `return IGNORE` examples to `return IGNORE()`. Existing async `resolve`/`reject` callbacks remain supported; reading either field selects explicit settlement;
+- [x] Feature: Added optional `settings`. Callback arguments `breadcrumbs` and `parentPath` are enabled by default; only literal `false` disables their preparation. Walks without callbacks skip path preparation automatically;
+- [x] Feature: Added `settings.copy:false` to walk without building a result. Callback order, paths, replacements, `IGNORE()`, and `PASS()` keep their traversal behaviour; the walk resolves `undefined`;
+- [x] Feature: Added read-only `parentPath` arrays to both callbacks. Paths exclude the current key, preserve property boundaries, and use input array indexes;
+- [x] Feature: Added the `PASS` function to `objectCallback`. Return `PASS()` to copy the current value, or `PASS(modifiedValue)` to use a replacement, without immediate key callbacks. Replacement promises are awaited. Nested objects and arrays resume normal callbacks; `IGNORE()` removes the entire branch;
+- [x] Packaging: Added `"types":"./types/main.d.ts"` before runtime conditions in `exports["."]` so modern TypeScript consumers resolve declarations through package-name imports;
+- [x] Fix: Read each property once before finding its type, so getters are not executed twice;
+- [x] Fix: Recognize arrays across JavaScript contexts and preserve numeric-looking non-index properties under their original names;
+- [x] Breaking: Callback execution now awaits each sibling in `Object.keys` order instead of starting siblings concurrently. Deferred container contents remain in scheduling order;
+- [x] Fix: Thrown callback errors, rejected callback promises, rejected resolve values, and nested-walk failures propagate to the walk promise. Awaited finite nested walks have independent state;
+- [x] Feature: Retained timeout diagnostics for explicit settlement and unresolved returned promises; timers are cleared on completion or failure;
+- [x] Performance: Replaced one-use generator wrappers with a work queue. Processed entries are cleared to release container and path references earlier; callback order is preserved;
+- [x] Cleanup: Native promises replace the runtime use of `ask-for-promise`; the declared dependency remains unchanged for the maintainer. Split source helpers to match the synchronous project and regenerated all three distributions and declarations; removed stale `types/src` output;
+- [x] Fix: Detect circular references through the current branch's ancestors and link them to the matching ancestor copy. Without copying, stop at the circular edge. Callbacks can still ignore or replace the edge; shared containers on separate branches are copied independently;
+- [x] Feature: Added `settings.detectCycles`, enabled by default. Only literal `false` skips circular-reference checks and all ancestor bookkeeping. Visited data and callback replacements must then have no circles, or callbacks must prune cyclic branches;
+- [x] Docs: Rewrote the README around readable traversal rules, transformations during copying, deep forEach, branch control, paths, and reference behaviour. Updated the skill and removed the outdated restriction on finite nested walk calls;
+- [x] Tests: Ported all 208 synchronous tests, retained all 66 existing async tests, and added awaited instruction, callback order, rejection, and nested-walk tests. Enforced 100% coverage thresholds;
+- [x] Tests: Added regression coverage for settings, parent paths, local `PASS`, traversal without copying, circular references, getters, and array recognition and properties;
+- [x] Verification: Added generated-format smoke checks, executable README examples, strict TypeScript consumption checks, and a repeatable benchmark for cycle detection, copying, and paths. Recorded actual async measurements without importing synchronous timing claims;
+
+
 
 ### 6.1.0 (2026-09-01)
 - [x] Feature: Added a skill at `.agents/skills/git-walk-async/SKILL.md`;
@@ -148,5 +175,3 @@
  - [x] Test package;
  - [x] Documentation;
  - [ ] Bug: Deep copy is not working.
-
-
