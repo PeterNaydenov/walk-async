@@ -1,0 +1,360 @@
+{
+  "node": "v26.10.0",
+  "platform": "darwin",
+  "architecture": "arm64",
+  "warmups": 1,
+  "samples": 3,
+  "shapes": [
+    {
+      "name": "flat",
+      "rows": [
+        {
+          "settings": {
+            "copy": true,
+            "breadcrumbs": true,
+            "parentPath": true,
+            "detectCycles": true
+          },
+          "milliseconds": [
+            1416.8959159999995,
+            1322.1732089999969,
+            1305.3820840000044
+          ],
+          "median": 1322.1732089999969
+        },
+        {
+          "settings": {
+            "copy": true,
+            "breadcrumbs": true,
+            "parentPath": true,
+            "detectCycles": false
+          },
+          "milliseconds": [
+            1367.5189580000006,
+            1346.2786250000026,
+            1307.0045420000024
+          ],
+          "median": 1346.2786250000026
+        },
+        {
+          "settings": {
+            "copy": true,
+            "breadcrumbs": false,
+            "parentPath": false,
+            "detectCycles": true
+          },
+          "milliseconds": [
+            1203.0910410000015,
+            1232.1813750000001,
+            1198.9875419999953
+          ],
+          "median": 1203.0910410000015
+        },
+        {
+          "settings": {
+            "copy": true,
+            "breadcrumbs": false,
+            "parentPath": false,
+            "detectCycles": false
+          },
+          "milliseconds": [
+            1288.8444579999996,
+            1291.672458000001,
+            1373.1566250000033
+          ],
+          "median": 1291.672458000001
+        },
+        {
+          "settings": {
+            "copy": false,
+            "breadcrumbs": true,
+            "parentPath": true,
+            "detectCycles": true
+          },
+          "milliseconds": [
+            1147.4660410000015,
+            1246.1680840000008,
+            1186.1745420000007
+          ],
+          "median": 1186.1745420000007
+        },
+        {
+          "settings": {
+            "copy": false,
+            "breadcrumbs": true,
+            "parentPath": true,
+            "detectCycles": false
+          },
+          "milliseconds": [
+            1216.298917,
+            1210.6729589999995,
+            1259.4033749999944
+          ],
+          "median": 1216.298917
+        },
+        {
+          "settings": {
+            "copy": false,
+            "breadcrumbs": false,
+            "parentPath": false,
+            "detectCycles": true
+          },
+          "milliseconds": [
+            1179.3708750000005,
+            1170.4681249999994,
+            1224.331624999999
+          ],
+          "median": 1179.3708750000005
+        },
+        {
+          "settings": {
+            "copy": false,
+            "breadcrumbs": false,
+            "parentPath": false,
+            "detectCycles": false
+          },
+          "milliseconds": [
+            1208.5611250000002,
+            1158.5278340000004,
+            1238.0624160000007
+          ],
+          "median": 1208.5611250000002
+        }
+      ]
+    },
+    {
+      "name": "records",
+      "rows": [
+        {
+          "settings": {
+            "copy": true,
+            "breadcrumbs": true,
+            "parentPath": true,
+            "detectCycles": true
+          },
+          "milliseconds": [
+            1082.3024579999983,
+            1062.401082999997,
+            1094.7149170000048
+          ],
+          "median": 1082.3024579999983
+        },
+        {
+          "settings": {
+            "copy": true,
+            "breadcrumbs": true,
+            "parentPath": true,
+            "detectCycles": false
+          },
+          "milliseconds": [
+            1080.4538749999992,
+            1154.2804590000014,
+            1057.0030409999963
+          ],
+          "median": 1080.4538749999992
+        },
+        {
+          "settings": {
+            "copy": true,
+            "breadcrumbs": false,
+            "parentPath": false,
+            "detectCycles": true
+          },
+          "milliseconds": [
+            780.1218749999971,
+            825.8727919999947,
+            800.083249999996
+          ],
+          "median": 800.083249999996
+        },
+        {
+          "settings": {
+            "copy": true,
+            "breadcrumbs": false,
+            "parentPath": false,
+            "detectCycles": false
+          },
+          "milliseconds": [
+            755.3188329999975,
+            798.8245419999948,
+            766.2299159999966
+          ],
+          "median": 766.2299159999966
+        },
+        {
+          "settings": {
+            "copy": false,
+            "breadcrumbs": true,
+            "parentPath": true,
+            "detectCycles": true
+          },
+          "milliseconds": [
+            1071.4644170000029,
+            1060.5950840000005,
+            1059.9592089999933
+          ],
+          "median": 1060.5950840000005
+        },
+        {
+          "settings": {
+            "copy": false,
+            "breadcrumbs": true,
+            "parentPath": true,
+            "detectCycles": false
+          },
+          "milliseconds": [
+            1106.5364580000023,
+            1031.505250000002,
+            1103.4507500000036
+          ],
+          "median": 1103.4507500000036
+        },
+        {
+          "settings": {
+            "copy": false,
+            "breadcrumbs": false,
+            "parentPath": false,
+            "detectCycles": true
+          },
+          "milliseconds": [
+            758.599000000002,
+            750.1747079999986,
+            742.3782500000016
+          ],
+          "median": 750.1747079999986
+        },
+        {
+          "settings": {
+            "copy": false,
+            "breadcrumbs": false,
+            "parentPath": false,
+            "detectCycles": false
+          },
+          "milliseconds": [
+            734.8005840000042,
+            731.2741249999963,
+            734.4991250000021
+          ],
+          "median": 734.4991250000021
+        }
+      ]
+    },
+    {
+      "name": "deep",
+      "rows": [
+        {
+          "settings": {
+            "copy": true,
+            "breadcrumbs": true,
+            "parentPath": true,
+            "detectCycles": true
+          },
+          "milliseconds": [
+            66.26979199999187,
+            86.22712500000489,
+            62.16133400000399
+          ],
+          "median": 66.26979199999187
+        },
+        {
+          "settings": {
+            "copy": true,
+            "breadcrumbs": true,
+            "parentPath": true,
+            "detectCycles": false
+          },
+          "milliseconds": [
+            79.5370830000029,
+            63.773832999999286,
+            59.835582999992766
+          ],
+          "median": 63.773832999999286
+        },
+        {
+          "settings": {
+            "copy": true,
+            "breadcrumbs": false,
+            "parentPath": false,
+            "detectCycles": true
+          },
+          "milliseconds": [
+            3.703165999992052,
+            3.5533330000034766,
+            3.7822500000038417
+          ],
+          "median": 3.703165999992052
+        },
+        {
+          "settings": {
+            "copy": true,
+            "breadcrumbs": false,
+            "parentPath": false,
+            "detectCycles": false
+          },
+          "milliseconds": [
+            3.5570410000073025,
+            3.094249999994645,
+            2.960124999997788
+          ],
+          "median": 3.094249999994645
+        },
+        {
+          "settings": {
+            "copy": false,
+            "breadcrumbs": true,
+            "parentPath": true,
+            "detectCycles": true
+          },
+          "milliseconds": [
+            64.14395900000818,
+            89.76191600000311,
+            62.51616699999431
+          ],
+          "median": 64.14395900000818
+        },
+        {
+          "settings": {
+            "copy": false,
+            "breadcrumbs": true,
+            "parentPath": true,
+            "detectCycles": false
+          },
+          "milliseconds": [
+            61.87629100000777,
+            85.35162499999569,
+            62.44708399999945
+          ],
+          "median": 62.44708399999945
+        },
+        {
+          "settings": {
+            "copy": false,
+            "breadcrumbs": false,
+            "parentPath": false,
+            "detectCycles": true
+          },
+          "milliseconds": [
+            3.5132919999887235,
+            3.59824999999546,
+            3.800082999994629
+          ],
+          "median": 3.59824999999546
+        },
+        {
+          "settings": {
+            "copy": false,
+            "breadcrumbs": false,
+            "parentPath": false,
+            "detectCycles": false
+          },
+          "milliseconds": [
+            3.3840000000054715,
+            3.3207499999989523,
+            3.116083000000799
+          ],
+          "median": 3.3207499999989523
+        }
+      ]
+    }
+  ]
+}

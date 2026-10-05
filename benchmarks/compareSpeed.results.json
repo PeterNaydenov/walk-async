@@ -1,0 +1,578 @@
+{
+  "node": "v26.10.0",
+  "platform": "darwin",
+  "architecture": "arm64",
+  "recordedAt": "2026-10-03T05:32:22.523Z",
+  "warmups": 1,
+  "samples": 5,
+  "shapes": [
+    {
+      "name": "flat",
+      "rows": [
+        {
+          "setting": "defaults",
+          "settings": {},
+          "mode": "sync",
+          "milliseconds": [
+            315.62454199999956,
+            317.4336669999975,
+            317.6392909999995,
+            321.3679590000029,
+            319.7014579999959
+          ],
+          "median": 317.6392909999995
+        },
+        {
+          "setting": "defaults",
+          "settings": {},
+          "mode": "async return",
+          "milliseconds": [
+            1341.3867500000015,
+            1359.2156659999964,
+            1412.466290999997,
+            1354.3969999999972,
+            1437.007042000012
+          ],
+          "median": 1359.2156659999964
+        },
+        {
+          "setting": "defaults",
+          "settings": {},
+          "mode": "async promise",
+          "milliseconds": [
+            1337.5491249999995,
+            1321.088834000002,
+            1389.8281669999997,
+            1317.5900829999955,
+            1332.4432910000032
+          ],
+          "median": 1332.4432910000032
+        },
+        {
+          "setting": "defaults",
+          "settings": {},
+          "mode": "async resolve",
+          "milliseconds": [
+            1479.1754170000004,
+            1497.7869589999973,
+            1408.3945830000011,
+            1532.7250830000048,
+            1497.326958000005
+          ],
+          "median": 1497.326958000005
+        },
+        {
+          "setting": "paths off",
+          "settings": {
+            "breadcrumbs": false,
+            "parentPath": false
+          },
+          "mode": "sync",
+          "milliseconds": [
+            306.21687499999825,
+            308.043875000003,
+            307.26391599999624,
+            303.5976659999942,
+            307.22166700000525
+          ],
+          "median": 307.22166700000525
+        },
+        {
+          "setting": "paths off",
+          "settings": {
+            "breadcrumbs": false,
+            "parentPath": false
+          },
+          "mode": "async return",
+          "milliseconds": [
+            1278.4895830000023,
+            1253.6500420000011,
+            1242.8417499999996,
+            1304.4644159999953,
+            1378.4356249999983
+          ],
+          "median": 1278.4895830000023
+        },
+        {
+          "setting": "paths off",
+          "settings": {
+            "breadcrumbs": false,
+            "parentPath": false
+          },
+          "mode": "async promise",
+          "milliseconds": [
+            1235.5131250000013,
+            1307.120583,
+            1203.3417499999996,
+            1248.5813340000022,
+            1213.3818750000064
+          ],
+          "median": 1235.5131250000013
+        },
+        {
+          "setting": "paths off",
+          "settings": {
+            "breadcrumbs": false,
+            "parentPath": false
+          },
+          "mode": "async resolve",
+          "milliseconds": [
+            1373.4598340000011,
+            1345.7245000000003,
+            1511.9782090000008,
+            1435.5705420000013,
+            1487.9301669999986
+          ],
+          "median": 1435.5705420000013
+        },
+        {
+          "setting": "visit only",
+          "settings": {
+            "copy": false,
+            "breadcrumbs": false,
+            "parentPath": false
+          },
+          "mode": "sync",
+          "milliseconds": [
+            214.7545829999981,
+            227.74662499999977,
+            214.71925000000192,
+            231.29675000000134,
+            233.31400000000576
+          ],
+          "median": 227.74662499999977
+        },
+        {
+          "setting": "visit only",
+          "settings": {
+            "copy": false,
+            "breadcrumbs": false,
+            "parentPath": false
+          },
+          "mode": "async return",
+          "milliseconds": [
+            1135.3292500000025,
+            1149.6184580000008,
+            1235.630250000002,
+            1143.9309159999975,
+            1194.3929590000043
+          ],
+          "median": 1149.6184580000008
+        },
+        {
+          "setting": "visit only",
+          "settings": {
+            "copy": false,
+            "breadcrumbs": false,
+            "parentPath": false
+          },
+          "mode": "async promise",
+          "milliseconds": [
+            1224.432208000002,
+            1238.961625,
+            1159.2703340000007,
+            1224.2147499999992,
+            1247.5711250000022
+          ],
+          "median": 1224.432208000002
+        },
+        {
+          "setting": "visit only",
+          "settings": {
+            "copy": false,
+            "breadcrumbs": false,
+            "parentPath": false
+          },
+          "mode": "async resolve",
+          "milliseconds": [
+            1371.2797920000012,
+            1397.6116250000014,
+            1436.0158749999973,
+            1394.1440000000002,
+            1359.605666000003
+          ],
+          "median": 1394.1440000000002
+        }
+      ]
+    },
+    {
+      "name": "records",
+      "rows": [
+        {
+          "setting": "defaults",
+          "settings": {},
+          "mode": "sync",
+          "milliseconds": [
+            140.93783299998904,
+            133.49354100000346,
+            150.833083000005,
+            134.08645800000522,
+            136.58324999999604
+          ],
+          "median": 136.58324999999604
+        },
+        {
+          "setting": "defaults",
+          "settings": {},
+          "mode": "async return",
+          "milliseconds": [
+            1075.0392500000016,
+            1065.6997499999998,
+            1042.7415000000037,
+            1105.1294579999958,
+            1008.0718750000087
+          ],
+          "median": 1065.6997499999998
+        },
+        {
+          "setting": "defaults",
+          "settings": {},
+          "mode": "async promise",
+          "milliseconds": [
+            1195.570875000005,
+            1206.0921660000022,
+            1127.7707920000103,
+            1194.7526660000003,
+            1108.096749999997
+          ],
+          "median": 1194.7526660000003
+        },
+        {
+          "setting": "defaults",
+          "settings": {},
+          "mode": "async resolve",
+          "milliseconds": [
+            1239.8957079999964,
+            1318.9310830000031,
+            1194.2505419999943,
+            1182.627708,
+            1224.205707999994
+          ],
+          "median": 1224.205707999994
+        },
+        {
+          "setting": "paths off",
+          "settings": {
+            "breadcrumbs": false,
+            "parentPath": false
+          },
+          "mode": "sync",
+          "milliseconds": [
+            106.34004199999617,
+            89.66454199999862,
+            90.90183300001081,
+            86.33604199999536,
+            90.47445900000457
+          ],
+          "median": 90.47445900000457
+        },
+        {
+          "setting": "paths off",
+          "settings": {
+            "breadcrumbs": false,
+            "parentPath": false
+          },
+          "mode": "async return",
+          "milliseconds": [
+            847.9219160000066,
+            806.6754169999913,
+            806.2554580000142,
+            772.6933750000026,
+            835.6130830000038
+          ],
+          "median": 806.6754169999913
+        },
+        {
+          "setting": "paths off",
+          "settings": {
+            "breadcrumbs": false,
+            "parentPath": false
+          },
+          "mode": "async promise",
+          "milliseconds": [
+            821.7201659999992,
+            797.9902080000029,
+            850.505124999996,
+            821.4391250000044,
+            811.1860830000078
+          ],
+          "median": 821.4391250000044
+        },
+        {
+          "setting": "paths off",
+          "settings": {
+            "breadcrumbs": false,
+            "parentPath": false
+          },
+          "mode": "async resolve",
+          "milliseconds": [
+            924.3559580000001,
+            905.0971669999999,
+            943.3817089999939,
+            887.0742080000055,
+            897.9537920000002
+          ],
+          "median": 905.0971669999999
+        },
+        {
+          "setting": "visit only",
+          "settings": {
+            "copy": false,
+            "breadcrumbs": false,
+            "parentPath": false
+          },
+          "mode": "sync",
+          "milliseconds": [
+            90.44887499998731,
+            74.06166599999415,
+            60.35320800000045,
+            81.60804199999257,
+            80.83870799999568
+          ],
+          "median": 80.83870799999568
+        },
+        {
+          "setting": "visit only",
+          "settings": {
+            "copy": false,
+            "breadcrumbs": false,
+            "parentPath": false
+          },
+          "mode": "async return",
+          "milliseconds": [
+            744.1027080000058,
+            740.3609589999978,
+            749.6506250000093,
+            711.6064579999947,
+            765.9410409999982
+          ],
+          "median": 744.1027080000058
+        },
+        {
+          "setting": "visit only",
+          "settings": {
+            "copy": false,
+            "breadcrumbs": false,
+            "parentPath": false
+          },
+          "mode": "async promise",
+          "milliseconds": [
+            751.5682090000046,
+            727.5892500000045,
+            801.1056249999965,
+            729.159833999991,
+            736.3353340000031
+          ],
+          "median": 736.3353340000031
+        },
+        {
+          "setting": "visit only",
+          "settings": {
+            "copy": false,
+            "breadcrumbs": false,
+            "parentPath": false
+          },
+          "mode": "async resolve",
+          "milliseconds": [
+            872.2055419999961,
+            838.3171670000011,
+            850.7117089999956,
+            846.2199169999949,
+            833.4100420000032
+          ],
+          "median": 846.2199169999949
+        }
+      ]
+    },
+    {
+      "name": "deep",
+      "rows": [
+        {
+          "setting": "defaults",
+          "settings": {},
+          "mode": "sync",
+          "milliseconds": [
+            8.83262499999546,
+            9.152291999998852,
+            8.306375000000116,
+            8.227249999996275,
+            9.549665999991703
+          ],
+          "median": 8.83262499999546
+        },
+        {
+          "setting": "defaults",
+          "settings": {},
+          "mode": "async return",
+          "milliseconds": [
+            65.93445899999642,
+            75.77287499999511,
+            73.43649999999616,
+            77.13466699999117,
+            79.74645799999416
+          ],
+          "median": 75.77287499999511
+        },
+        {
+          "setting": "defaults",
+          "settings": {},
+          "mode": "async promise",
+          "milliseconds": [
+            81.22516699999687,
+            71.00591600000917,
+            78.93045800000255,
+            74.55800000000454,
+            74.93445800000336
+          ],
+          "median": 74.93445800000336
+        },
+        {
+          "setting": "defaults",
+          "settings": {},
+          "mode": "async resolve",
+          "milliseconds": [
+            68.30495899998641,
+            75.09962500000256,
+            69.0679999999993,
+            69.0387919999921,
+            85.15050000000338
+          ],
+          "median": 69.0679999999993
+        },
+        {
+          "setting": "paths off",
+          "settings": {
+            "breadcrumbs": false,
+            "parentPath": false
+          },
+          "mode": "sync",
+          "milliseconds": [
+            1.1666669999976875,
+            1.0893329999962589,
+            1.0936660000006668,
+            1.0880829999950947,
+            1.1195000000006985
+          ],
+          "median": 1.0936660000006668
+        },
+        {
+          "setting": "paths off",
+          "settings": {
+            "breadcrumbs": false,
+            "parentPath": false
+          },
+          "mode": "async return",
+          "milliseconds": [
+            3.4010419999976875,
+            3.408625000010943,
+            5.11904200000572,
+            3.341166999991401,
+            3.6307080000115093
+          ],
+          "median": 3.408625000010943
+        },
+        {
+          "setting": "paths off",
+          "settings": {
+            "breadcrumbs": false,
+            "parentPath": false
+          },
+          "mode": "async promise",
+          "milliseconds": [
+            3.642707999999402,
+            4.202457999999751,
+            3.3042089999944437,
+            3.6579579999961425,
+            3.4757079999981215
+          ],
+          "median": 3.642707999999402
+        },
+        {
+          "setting": "paths off",
+          "settings": {
+            "breadcrumbs": false,
+            "parentPath": false
+          },
+          "mode": "async resolve",
+          "milliseconds": [
+            3.57362500000454,
+            3.5836249999993015,
+            3.7084579999936977,
+            3.5850829999981215,
+            4.295958000002429
+          ],
+          "median": 3.5850829999981215
+        },
+        {
+          "setting": "visit only",
+          "settings": {
+            "copy": false,
+            "breadcrumbs": false,
+            "parentPath": false
+          },
+          "mode": "sync",
+          "milliseconds": [
+            1.0876250000001164,
+            1.0464170000050217,
+            0.967333000007784,
+            0.9615840000042226,
+            1.0527500000025611
+          ],
+          "median": 1.0464170000050217
+        },
+        {
+          "setting": "visit only",
+          "settings": {
+            "copy": false,
+            "breadcrumbs": false,
+            "parentPath": false
+          },
+          "mode": "async return",
+          "milliseconds": [
+            3.94220900000073,
+            4.116083000000799,
+            4.174791999990703,
+            3.8724999999976717,
+            3.3685000000114087
+          ],
+          "median": 3.94220900000073
+        },
+        {
+          "setting": "visit only",
+          "settings": {
+            "copy": false,
+            "breadcrumbs": false,
+            "parentPath": false
+          },
+          "mode": "async promise",
+          "milliseconds": [
+            3.2623750000057044,
+            3.2125420000083977,
+            3.3213339999929303,
+            3.2024579999997513,
+            4.223749999990105
+          ],
+          "median": 3.2623750000057044
+        },
+        {
+          "setting": "visit only",
+          "settings": {
+            "copy": false,
+            "breadcrumbs": false,
+            "parentPath": false
+          },
+          "mode": "async resolve",
+          "milliseconds": [
+            4.451042000000598,
+            4.224375000005239,
+            4.914166999995359,
+            4.117249999995693,
+            3.4964579999941634
+          ],
+          "median": 4.224375000005239
+        }
+      ]
+    }
+  ],
+  "provenance": "Historical October 3, 2026 measurements of the working v7 implementations before FINISH was added. Source revisions and hashes were not captured. Rerunning the script measures the current checkouts."
+}
