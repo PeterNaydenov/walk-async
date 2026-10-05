@@ -1,0 +1,259 @@
+"use strict"
+
+import { describe, it, expect } from 'vitest'
+import walk from '../src/main.js'
+
+
+
+describe ( 'Walk-async: Deep copy', () => {
+
+    it.each ([ false, true ]) ( 'Read a getter once (keyCallback: %s)', async useKeyCallback => {
+                let reads = 0
+                const data = {
+                          get number () { return ++reads }
+                    }
+                const options = { data }
+                if ( useKeyCallback )   options.keyCallback = ({ value }) => value * 10
+
+                const r = await walk ( options )
+
+                expect ( reads ).toBe ( 1 )
+                expect ( r.number ).toBe ( useKeyCallback ? 10 : 1 )
+        }) // it Read a getter once
+
+
+
+    it ( 'Copy the captured getter value even if later reads would change its type', async () => {
+                let reads = 0
+                const child = { value: 42 }
+                const data = {
+                          get child () { return ++reads === 1 ? child : null }
+                    }
+
+                const r = await walk ({ data })
+
+                expect ( reads ).toBe ( 1 )
+                expect ( r.child ).toEqual ( child )
+                expect ( r.child ).not.toBe ( child )
+        }) // it Copy the captured getter value
+
+
+
+    it ( 'Copy a primitive value', async () => {
+                let
+                      x = 12
+                    , r = await walk ({data:x})
+                    ;
+
+                x = 64
+                expect ( r ).toBe ( 12 )
+                expect ( r !== x ).toBe ( true )
+        }) // it copy a primitives
+
+
+
+    it ( 'Copy array of strings', async () => {
+                let
+                      x = [ 'one', 'two', 'three' ]
+                    , r = await walk ({ data : x })
+                    ;
+                x.push ( 'four' )
+                expect ( r ).toHaveLength ( 3 )
+        }) // it copy array of strings
+
+
+
+    it ( 'Copy a single level deep object', async () => {
+                let
+                      x = { name:'Peter', age: 47 }
+                    , r = await walk ({ data:x })
+                    , z = x
+                    ;
+                x.test = 'hello'
+                expect ( r ).not.toHaveProperty ( 'test' )
+                expect ( z ).toHaveProperty ( 'test' )
+        }) // it copy a single level deep object
+
+
+
+    it ( 'Copy a mixed structure', async () => {
+                let
+                    x = {
+                              ls   : [ 1,2,3 ]
+                            , name : 'Peter'
+                            , props : {
+                                          eyeColor: 'blue'
+                                        , age     : 47
+                                        , height  : 176
+                                        , sizes : [12,33,12,21]
+                                    }
+                            }
+                  , r = await walk ({ data : x })
+                  ;
+
+                r.props.sizes.push ( 66 )
+                x.props.sizes[0] = 222222
+                x.props.test = 'hello'
+
+                expect ( x.props.sizes ).toHaveLength ( 4 )
+                expect ( r.props.sizes ).toHaveLength ( 5 )
+                expect ( x.props.sizes[0] !== r.props.sizes[0]).toBe ( true )
+
+                expect ( r.props ).not.toHaveProperty ( 'test' )
+        }) // it Copy a mixed structure
+
+
+
+    it ( 'Data property has value "null"', async () => {
+          const
+              data = { name : null }
+            , r = await walk ({data})
+            ;
+          expect ( r ).toHaveProperty ( 'name' )
+          expect ( r.name ).toBe ( null )
+    }) // it Data property has value null
+
+
+
+    it ( 'Data property has "boolean" value', async () => {
+        const data = {   // Booleans
+                      happy : true
+                    , sad   : false
+                };
+        const r = await walk ({ data });
+        expect ( r ).toHaveProperty ( 'happy' )
+        expect ( r.happy ).toBe ( true )
+        expect ( r ).toHaveProperty ( 'sad' )
+        expect ( r.sad ).toBe ( false )
+    }) // it Data property has "boolean" value
+
+
+
+    it ( 'html nodes - copy by reference', async () => {
+          const data = {
+                        name : 'Peter'
+                      , pretendHTML : { nodeType: 1 }
+                  };
+          const r = await walk ({ data });
+          r.pretendHTML.something = 'hello'
+          expect ( data.pretendHTML.something ).toBe ( 'hello' )   // Recognize html nodes and keep them as a reference
+      }) // html nodes - copy by reference
+
+
+
+    it ( 'Functions type - copy by reference', async () => {
+              const data = {
+                            name : 'Peter'
+                          , func : () => 12
+                      };
+
+              const r = await walk ({ data });
+              expect ( r.func() ).toBe ( 12 )
+      }) // it Functions type - copy by reference
+
+
+
+    it ( 'Own "__proto__" property - no prototype injection', async () => {
+              const data = JSON.parse ( '{"__proto__": {"polluted": true}, "a": 1}' );   // own '__proto__' key, as delivered by untrusted JSON
+
+              const r = await walk ({ data });
+              expect ( Object.getPrototypeOf ( r ) ).toBe ( Object.prototype )   // prototype must stay untouched
+              expect ( r.polluted ).toBe ( undefined )                           // nothing injected via inheritance
+              expect ( r.a ).toBe ( 1 )
+              expect ( Object.prototype.hasOwnProperty.call ( r, '__proto__' ) ).toBe ( true )   // copied as an own property
+              expect ( Object.getOwnPropertyDescriptor ( r, '__proto__' ).value ).toEqual ({ polluted: true })
+      }) // it Own "__proto__" property - no prototype injection
+
+
+
+    it ( 'Sparse array input - indexes are rebuilt', async () => {
+              const data = [ 1, , 3 ];   // eslint-disable-line no-sparse-arrays
+
+              const r = await walk ({ data });
+              expect ( r ).toEqual ([ 1, 3 ])
+              expect ( r.length ).toBe ( 2 )
+      }) // it Sparse array input - indexes are rebuilt
+
+
+
+    it ( 'Property named "root" with object value', async () => {
+              const data = {
+                            root : { a: 1 }
+                          , b    : 2
+                      };
+
+              const r = await walk ({ data });
+              expect ( r ).toHaveProperty ( 'root' )
+              expect ( r.root ).toEqual ({ a: 1 })
+              expect ( r ).not.toHaveProperty ( 'a' )   // must not be flattened into the parent
+              expect ( r.b ).toBe ( 2 )
+      }) // it Property named "root" with object value
+
+
+
+    it ( 'Property named "root" with primitive value', async () => {
+              const data = {
+                            root : 5
+                          , b    : 2
+                      };
+
+              const r = await walk ({ data });
+              expect ( r ).toHaveProperty ( 'root' )
+              expect ( r.root ).toBe ( 5 )
+              expect ( r.b ).toBe ( 2 )
+      }) // it Property named "root" with primitive value
+
+
+
+    it ( 'Property named "root" - breadcrumbs are correct', async () => {
+              const data = {
+                            root : { a: 1 }
+                      };
+              const visited = [];
+
+              function oCallbackFn ({ value, breadcrumbs }) {
+                        visited.push ( breadcrumbs )
+                        return value
+                  }
+
+              const r = await walk ({ data, objectCallback: oCallbackFn });
+              expect ( visited ).toContain ( 'root' )        // the real root object
+              expect ( visited ).toContain ( 'root/root' )   // the property named 'root'
+              expect ( r.root ).toEqual ({ a: 1 })
+      }) // it Property named "root" - breadcrumbs are correct
+
+
+
+    it ( 'Top-level `null` is preserved (does not crash, does not silently drop)', async () => {
+                // Regression test for v3.0.0 "Breaks if object contains value 'null'".
+                // The bug was carried as open through 2.0.0 / 2.0.1 and fixed in 3.0.1.
+                // The README and JSDoc both claim null is handled, but until this
+                // test was added there was no test that actually exercised a
+                // top-level null value. Confirms the claim.
+                const r = await walk ({ data: null })
+                expect ( r ).toBe ( null )
+        }) // it Top-level `null` is preserved
+
+
+
+    it ( 'Top-level `undefined` is preserved (does not crash)', async () => {
+                // Sibling test to the null case. `undefined` is also a 'simple'
+                // value in `findType` and should round-trip without losing the
+                // value or crashing the walker.
+                const r = await walk ({ data: undefined })
+                expect ( r ).toBe ( undefined )
+        }) // it Top-level `undefined` is preserved
+
+
+
+    it ( 'Top-level `0` / `false` / `""` round-trip as themselves, not as `undefined`', async () => {
+                // `findType` classifies these as 'simple' but a buggy walker
+                // can confuse them with "absent" and store `undefined`.
+                // Pins the falsy-but-present contract.
+                expect ( await walk ({ data: 0 }) ).toBe ( 0 )
+                expect ( await walk ({ data: false }) ).toBe ( false )
+                expect ( await walk ({ data: '' }) ).toBe ( '' )
+        }) // it Top-level falsy primitives round-trip
+
+}) // describe
+
