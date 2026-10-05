@@ -2,436 +2,626 @@
 
 ![version](https://img.shields.io/github/package-json/v/peterNaydenov/walk-async)
 ![license](https://img.shields.io/github/license/peterNaydenov/walk-async)
+![npm](https://img.shields.io/npm/dt/%40peter.naydenov/walk-async)
 ![GitHub issues](https://img.shields.io/github/issues/peterNaydenov/walk-async)
-![npm bundle size](https://img.shields.io/bundlephobia/minzip/%40peter.naydenov%2Fwalk-async)
+![GitHub top language](https://img.shields.io/github/languages/top/peterNaydenov/walk-async)
+![npm package minimized gzipped size (select exports)](https://img.shields.io/bundlejs/size/%40peter.naydenov%2Fwalk-async)
 
-`walk-async` visits every member of a JavaScript data structure **once**, in a single pass. Two callbacks run during the visit:
+**Write the rules. Let `walk` handle the nesting.**
 
-- `objectCallback` fires on every object or array (including the root)
-- `keyCallback` fires on every primitive property
+Mask values, remove branches, and reshape objects while building a new result. Or inspect the data without creating a copy. `walk` travels through nested objects and arrays for you, so one or two callback functions can replace layers of loops and repeated transformations.
 
-Both callbacks can `resolve` a new value (mask, filter, or substitute) or `reject` to drop the key. Callbacks are async — they can `await` work, talk to the network, read files, anything — and the walk is built so a single pass collects all the transformations you need. The deep copy of the original data is mostly a side-effect: the real power of `walk-async` is the ability to do all your modifications in one pass, with full freedom inside a single callback.
-
-```js
-
-  walk ({
-            data             // (required) Any JS data structure;
-          , objectCallback   // (optional) Function executed on each object/array property;
-          , keyCallback      // (optional) Function executed on each primitive property;
-          , timeout          // (optional) Milliseconds. Reject the promise if callbacks do not resolve in time;
-      })
-    .then ( result => {
-                              // `result` is an immutable copy of `data` if callbacks are absent
-                              // or resolve with the original `value` unchanged.
-      })
-```
-
-> **When to use `walk-async` vs `structuredClone`.**
-> `structuredClone` is built into modern browsers and Node 17+ and is the right tool when you just need a deep copy. Reach for `walk-async` when you want to **modify particular properties, set values conditionally, or skip whole branches** during the copy — all in a single pass over the data — and your callbacks need to do async work. If you don't need callbacks, or you don't need async, `walk-async` is overkill: use `structuredClone` for the simple case, or use the sibling [`@peter.naydenov/walk`](https://github.com/PeterNaydenov/walk) for sync callbacks.
-
-
-## Order of execution
-
-A few invariants to keep in mind — they shape the order in which your callbacks fire and are easier to reason about up front than to discover in the source:
-
-- **Within one level, keys are visited in `Object.keys` order.** That's the order of own enumerable string keys on the current object/array.
-- **A level finishes before any nested walk starts.** When `walk-async` hits an object/array value (original or returned by a callback), it allocates the result container and defers the nested walk. The nested walk runs after the current level's iteration completes. New objects/arrays returned by `keyCallback` or `objectCallback` are scheduled the same way, so the iteration order of the current level is preserved.
-- **`objectCallback` runs before `keyCallback` on the same value.** For every object/array, `objectCallback` fires first; if it resolves with a new object, that object is what gets walked; its primitive children are then handed to `keyCallback`.
-- **The root is treated as a normal object/array.** When `data` is an object/array, the root goes through `objectCallback` first (if defined), then its children are walked. Rejecting from the root `objectCallback` short-circuits the whole walk to an empty result.
-
-Because callbacks are async, the same level's keys are started concurrently in `Object.keys` order — they don't have to wait for each other to resolve before the next one is fired. They just have to finish before the next level begins.
-
-
-## keyCallback
-`walk-async` visits each member of the data once. `keyCallback` fires on every primitive property — types: *string, number, bigint, boolean, symbol, null, undefined, function*. Object and array values are visited by `objectCallback` instead (see below). Built-in types like `Date`, `Map`, `Set`, and typed arrays arrive at `keyCallback` as primitives and are passed through by reference — see [Built-in types](#built-in-types-date-regexp-map-set-typed-arrays-etc) below.
-
-The value you `resolve` becomes the new value at that key:
-
-- **Resolve a primitive (or a built-in like `Date` / `Map` / `Set`)** → stored as-is. Walk does not descend into it;
-- **Resolve a plain object or array** → walk continues into it with `objectCallback` and `keyCallback` applied to its children (same as any original nested object/array). The new walk is deferred via the `extend` mechanism, so the iteration order of the current level is preserved;
-- **`reject()`** → that key is dropped from the result.
+A deep copy is the starting point. What you do during the copy is where it gets interesting:
 
 ```js
-function keyCallbackFn ({ value, key, breadcrumbs, resolve, reject }) {
-      // value: value of the property;
-      // key:  key of the property;
-      // breadcrumbs: location of the property;
-      // resolve: function. Call it with the new value to store at that key;
-      // reject: function. Call it to drop the key from the result;
-      // Important: key callback should be resolved or rejected on every code path,
-      // otherwise the walk promise never settles. See section "Timeout".
-  }
+import walk from '@peter.naydenov/walk-async'
 
-const result = await walk ({ data, keyCallback : keyCallbackFn });  // It's the short way to provide only key-callback. Callback functions are optional.
-// walk ({ data, keyCallback, objectCallback });  // If both callbacks are available
+let data = {
+                  user    : { name:'Peter', email:'peter@example.test', password:'secret' }
+                , history : [{ action:'login' }]
+            };
+
+let result = await walk ({
+                          data
+                        , objectCallback : ({ value, key, IGNORE }) => key === 'history' ? IGNORE() : value
+                        , keyCallback : ({ value, key, IGNORE }) => {
+                                              if ( key === 'password' )   return IGNORE()
+                                              if ( key === 'email' )      return 'hidden'
+                                              return value
+                                          }
+                    })
+// { user:{ name:'Peter', email:'hidden' } }
 ```
 
+The rules work wherever those keys appear. The `history` branch is removed before its contents are visited. The source remains unchanged because these callbacks return replacements rather than modifying it.
 
-## objectCallback
+> This README describes the upcoming major release. Callbacks can now return values or promises, with callable `IGNORE()` and `PASS()` helpers shared with the synchronous library. Existing `resolve`/`reject` callbacks remain supported. See the [migration guide](Migration.guide.md) when upgrading.
 
-Optional callback function that is started on each object or array property, including the root. The value you `resolve` becomes the new value at that key:
+## Choose synchronous or asynchronous Walk
 
-- **Resolve an object or array** → walk continues into it with the other callbacks applied to its children;
-- **Resolve a primitive** (string, number, `null`, etc.) → it is stored at that key as-is, and walk does not descend into it (primitives have no children to walk);
-- **`reject()`** → that key is dropped from the result.
+Choose the library according to the work your callbacks do:
 
-```js
-function objectCallbackFn ({ value, key, breadcrumbs, resolve, reject }) {
-      // value: each object/array during the walk;
-      // key: key of the object/array;
-      // breadcrumbs: location of the object;
-      // resolve: function. Call it with the new value to store at that key;
-      // reject: function. Call it to drop the key from the result;
-      // Important: Object callback should be resolved or rejected on every code path,
-      // otherwise the walk promise never settles. See section "Timeout".
-}
+| Callback work | Choose |
+| --- | --- |
+| Immediate transformations, masking, filtering, or collecting values | [`@peter.naydenov/walk`](https://github.com/PeterNaydenov/walk) |
+| Awaiting network requests, database queries, file reads, or other asynchronous operations | [`@peter.naydenov/walk-async`](https://github.com/PeterNaydenov/walk-async) |
 
-walk ({
-          data
-        , keyCallback: keyCallbackFn
-        , objectCallback : objectCallbackFn
-    })
-  .then ( resultOfWalk => {
-            // do something with the result of walk
-      })
-```
+The two libraries share traversal rules, settings, paths, `IGNORE()`, `PASS()` and `FINISH()`. Synchronous Walk returns the result directly and does not await callback promises. Walk Async awaits callback results and returns a Promise, so await the walk to obtain the result or finish a deep forEach. Walk Async processes callbacks in traversal order; sibling callbacks do not run concurrently.
 
-**IMPORTANT: Object-callbacks are executed always before key-callbacks. If we have both callbacks, then key-callbacks will be executed on the result of object-callback.**
+### Immediate callbacks: measured comparison
 
-Skip key-callbacks by not providing a keyCallback function:
-```js
- let result = await walk ({ data })   // ignore key-callbacks
-```
+An immediately completed callback still has an async cost. In this historical sample recorded on October 3, 2026, before FINISH was added to either implementation, synchronous Walk completed the workloads about **4–9 times faster** with default settings. Median times in milliseconds:
 
+| Shape | Sync | Async: plain return | Async: async callback | Async: immediate resolve(value) |
+| --- | --- | --- | --- | --- |
+| 1,000,000-key flat object | 317.64 | 1359.22 | 1332.44 | 1497.33 |
+| 100,000 records with nested metadata and tags | 136.58 | 1065.70 | 1194.75 | 1224.21 |
+| 4,000-level child chain | 8.83 | 75.77 | 74.93 | 69.07 |
 
-## Why one callback, not a list of methods
+Both callbacks simply passed through `value`. The async variants returned it directly, used an `async` callback returning it, or called `resolve(value)` immediately. No callback waited for I/O or a timer. Copying, breadcrumbs, parent paths, and circular detection were enabled. Measurements used Node v26.10.0 on macOS arm64, one warmup per combination, and five samples with rotating execution order on the same machine.
 
-`walk-async` is built around a single pass over the data — every member is visited exactly once, no matter how many transformations the callbacks perform. This is the whole reason the API exposes a callback (or two, for objects vs primitives) and not a bag of pre-built methods like `omit`, `pick`, or `set`.
+The comparison also covered disabled paths and traversal without copying; synchronous Walk was faster in every tested combination. The exact difference depends on the data, settings, runtime, and callback work. The 4–9 times range describes these default-setting samples, rather than a guarantee for every application. Choose sync for work that completes synchronously, and async when callbacks need to await operations.
 
-Each pre-built method would be another pass over the data: dropping one key, then renaming another, then masking a third — that's three O(n) cycles where one would do. With async callbacks the cost is even worse, because each extra pass pays the full round-trip of every awaited I/O operation. The cost compounds with every method you chain, and on large data it gets expensive fast.
-
-A single `keyCallback` (and optionally `objectCallback`) lets you do every transformation you need in the same pass — drop a key, mask a value, rename another, conditionally remove a subtree, await an API call to enrich a field — all together, no extra cycles.
-
-If you find yourself wanting a named transformation you can reuse, the natural place for it is a **callback factory**: a function that returns a `keyCallback` / `objectCallback`. Such factories can live in a separate package; they don't need to extend `walk-async` itself.
-
-```js
-// Example callback factory — not part of walk-async
-function omitKeys (...keysToDrop) {
-    const set = new Set ( keysToDrop )
-    return ({ key, value, resolve, reject }) => {
-        if ( set.has ( key ) )   reject ()
-        else                     resolve ( value )
-    }
-}
-
-const result = await walk ({
-      data: user
-    , keyCallback: omitKeys ( 'password', 'token' )
-})
-```
-
+The [benchmark script](https://github.com/PeterNaydenov/walk-async/blob/main/benchmarks/compareSpeed.mjs) and [complete samples](https://github.com/PeterNaydenov/walk-async/blob/main/benchmarks/compareSpeed.results.json) are kept in the Walk Async repository. The saved samples do not contain source hashes; rerunning the script measures the current checked-out sources. To run the comparison, check out both repositories beside each other and run `node benchmarks/compareSpeed.mjs` from Walk Async.
 
 ## Installation
 
-Install for node.js projects by writing in your terminal:
-
-```
+```sh
 npm install @peter.naydenov/walk-async
 ```
 
-Once it has been installed, it can be used by writing this line of JavaScript:
-```js
-let walk = require ( '@peter.naydenov/walk-async' )
-```
-
-or
+Use an ES module import:
 
 ```js
 import walk from '@peter.naydenov/walk-async'
 ```
 
-**Installation for browsers**: Get the file `"dist/walk-async.min.js"` and put it inside the project. Request the file from HTML page. Global variable 'walk' is available for use.
-
-        Note:
-        Library is using 'generator functions'. If support for old browsers
-        is required, add a polyfill for 'generators'.
-
-
-
-
-## How to use it
-
-### Deep copy
-```js
-const myCopy = await walk ({ data:x })   // where x is some javascript data structure
-```
-
-
-### Built-in types (Date, RegExp, Map, Set, typed arrays, etc.)
-`walk-async` operates on the own-enumerable-string-key model. Values whose data lives outside that model are **preserved by reference** — the same instance appears in the result:
-
-| Type                                     | Behavior                                  |
-| ---------------------------------------- | ----------------------------------------- |
-| `Date`, `RegExp`                         | Passed by reference                       |
-| `Map`, `Set`, `WeakMap`, `WeakSet`       | Passed by reference                       |
-| `ArrayBuffer`, `DataView`, typed arrays  | Passed by reference                       |
-| DOM nodes (`HTMLElement`, etc.)          | Passed by reference                       |
-| Functions                                | Passed by reference                       |
+Or CommonJS:
 
 ```js
-const x = { when: new Date ( '2024-01-15' ), tags: new Set ([ 'js' ]) }
-const r = await walk ({ data: x })
-r.when === x.when   // true  — same Date instance
-r.tags === x.tags   // true  — same Set instance
+const walk = require ( '@peter.naydenov/walk-async' )
 ```
 
-This is the same contract used by `function` values and DOM nodes. If you need a deep copy of a `Map`/`Set`/typed array, do it yourself before calling `walk-async`, or use the platform `structuredClone` for those particular subtrees.
-
-
-### Deep 'forEach'
-`keyCallback` can be used as a deep `forEach` over every primitive property of the data — no matter how deeply nested. Unlike a plain `forEach`, **the callback must call `resolve` or `reject` on every code path**: that resolution is what tells `walk-async` the per-key work is done. To walk without changing anything, `resolve(value)`.
+## One walk, one or two callbacks
 
 ```js
-let x = {
-          ls    : [ 1,2,3 ]
-        , name  : 'Peter'
-        , props : {
-                      eyeColor: 'blue'
-                    , age     : 47
-                    , height  : 176
-                    , sizes : [12,33,12,21]
-                }
-    };
-
-function keyFn ({ value, key, breadcrumbs, resolve }) {
-              console.log (`${key} ----> ${value}`)   // Show each each primitive couples key->value
-              console.log ( `Property location >> ${breadcrumbs}`)
-              // example for breadcrumbs: 'age' will looks like this : 'root/props/age'
-              resolve ( value )                       // pass-through — required, otherwise the result loses this key
-    }
-
-walk ({ data:x, keyCallback: keyFn })
-    .then ( result => {
-                    // result is a deep copy of x
-          })
+let result = await walk ({
+                          data
+                        , keyCallback
+                        , objectCallback
+                        , settings
+                    }, ...args )
 ```
 
-`breadcrumbs` is a slash-delimited path string starting with `root` (e.g. `"root/props/age"`). Use it to know where you are in the structure; you can `.split('/')` it if you need a path array.
+Only `data` is required. The walk returns a Promise; await it to get the result or finish a deep forEach. Both callbacks may be async, and their returned results are awaited before the next callback starts. Choose the callbacks your task needs:
 
-> Built-in types (`Date`, `Map`, `Set`, typed arrays, etc.) are reached by `keyCallback` as-is — see [Built-in types](#built-in-types-date-regexp-map-set-typed-arrays-etc) above.
+| Callback | Receives | Use it to |
+| --- | --- | --- |
+| `keyCallback` | Leaf values: primitives, functions, and supported built-in values | Change, mask, collect, or remove individual values |
+| `objectCallback` | Objects and arrays, including the root | Reshape containers, remove branches, or skip their immediate key callbacks |
 
+Both callbacks receive an arguments object. Async-only `resolve` and `reject` fields support existing explicit-settlement callbacks; return-based callbacks can leave them unused. Extra arguments passed after the options are forwarded to both callbacks in the same order.
+
+| Argument | Meaning |
+| --- | --- |
+| `value` | The current value |
+| `key` | The property's name as a string; `'root'` for the root object callback |
+| `breadcrumbs` | A string such as `'root/profile/age'` |
+| `parentPath` | A read-only array such as `['root','profile']`, excluding the current key |
+| `IGNORE` | Call and return `IGNORE()` to remove the key or branch |
+| `FINISH` | Available to both callbacks; return `FINISH()` or `FINISH(value)` to finish the walk |
+| `isFinished` | Available to `keyCallback`; `true` while processing a final branch selected by `objectCallback` |
+| `PASS` | Available to `objectCallback`; return `PASS()` or `PASS(value)` to skip immediate key callbacks |
+
+When copying, return the value you want in the result. Return `value` to keep it unchanged. Returning `null` or `undefined` stores that value; it does not remove the property. `IGNORE()` removes it while continuing the walk; `FINISH()` omits it and stops. With `settings.copy:false`, returns still control which structures get visited, but no result is built.
+
+## Agent skill
+
+The [Walk Async skill](skills/walk-async/SKILL.md) helps coding agents use the
+upcoming version 7 API. It provides a concise entrypoint and linked callback,
+control-flow, settings, and runnable-example references, loaded as needed.
+Install or read the complete `skills/walk-async/` folder with its references.
+It is portable across agents; discovery depends on the agent's integration.
+See [skill integration and maintenance](skills/README.md).
+
+The repository includes the skill. The current npm `files` whitelist still
+excludes its new folder; [the integration notes](skills/README.md#package-integration)
+record the manual replacement of `".agents/skills"` with `"skills"` needed
+before the skill and its integration README can ship in npm.
+
+## Await work during the walk
+
+Use the same rules as the synchronous library, with an async callback when a value needs I/O:
+
+```js
+let data = { first:'https://example.test/first', nested:{ second:'https://example.test/second' } };
+
+let result = await walk ({
+                          data
+                        , keyCallback : async ({ value }) => {
+                                              if ( typeof value !== 'string' || !value.startsWith ( 'https://' ) )   return value
+                                              const response = await fetch ( value );
+                                              return await response.json ()
+                                          }
+                    })
+```
+
+The parsed objects are visited like any other replacement containers. Thrown errors and rejected promises propagate to the caller. To remove a failed value instead, catch the error in the callback and return `IGNORE()`.
+
+The synchronous sibling uses the same `settings`, paths, `IGNORE()` and `PASS()` rules. Moving a return-based call here means changing the import to `@peter.naydenov/walk-async` and awaiting the walk. Choose the synchronous [walk](https://github.com/PeterNaydenov/walk) when callbacks do not need async work.
+
+### Existing resolve/reject callbacks
+
+Callbacks from v6 can keep explicitly settling their value:
+
+```js
+let result = await walk ({
+                          data : { name:'Peter', password:'secret' }
+                        , keyCallback : ({ value, key, resolve, reject }) => {
+                                              if ( key === 'password' )   reject ()
+                                              else                       resolve ( value )
+                                          }
+                    })
+// { name:'Peter' }
+```
+
+Reading or destructuring `resolve` or `reject` selects explicit settlement for that callback invocation. Call one of them on every path; the returned value is then ignored, but an async callback's completion is still awaited. Destructure only the fields you use: spreading the entire arguments object also reads these fields and selects explicit settlement. Return-based callbacks may return `undefined` normally, including side-effect callbacks with `copy:false`.
+
+`resolve(value)` also awaits a supplied promise. It accepts `IGNORE()` and `PASS(...)` instructions under the same rules as callback returns. `reject()` removes a key or branch, including the root; its optional reason is ignored. To fail the walk, throw or return a rejected promise instead.
+
+### Timeout
+
+The optional `timeout` is a duration in milliseconds for the whole walk. It catches unresolved returned promises and explicit callbacks that forget to settle:
+
+```js
+await walk ({
+              data : { number:1 }
+            , keyCallback : ({ resolve }) => { /* forgotten settlement */ }
+            , timeout : 1000
+        })
+// Rejects: walk-async: timed out after 1000ms; callbacks still pending:
+//   - keyCallback at 'root/number'
+```
+
+When breadcrumbs are disabled, diagnostics name the pending key instead. A timeout rejects the caller's promise; it does not cancel callback I/O or undo side effects. The timer is cleared when the walk settles.
+
+## Transform while copying
+
+Change a leaf in `keyCallback`, or return a replacement object from `objectCallback`. The returned structure becomes the input for the next part of the walk.
+
+```js
+let data = {
+                  profile : { name:'Peter', active:true, internalCode:42 }
+                , visits  : 3
+            };
+
+let result = await walk ({
+                          data
+                        , objectCallback : ({ value, key }) => {
+                                              if ( key === 'profile' )   return { name:value.name, active:value.active }
+                                              return value
+                                          }
+                        , keyCallback : ({ value, key }) => key === 'name' ? value.toUpperCase() : value
+                    })
+// { profile:{ name:'PETER', active:true }, visits:3 }
+```
+
+A plain object or array returned by either callback is walked into and copied. When `keyCallback` returns a container, its children receive the normal callbacks; `objectCallback` is not called again for that replacement container itself.
+
+A simple value returned by `objectCallback` is passed to `keyCallback` if key callbacks are active for its parent. A simple replacement returned from the root object callback is returned directly.
+
+For an ordinary copy, leave out both callbacks:
+
+```js
+let data = { profile:{ name:'Peter' }, scores:[1,2,3] };
+let result = await walk ({ data })
+
+result !== data                  // true
+result.profile !== data.profile  // true
+result.scores !== data.scores    // true
+```
+
+Objects and arrays get new containers. Supported built-in values and functions keep their original references; see [What gets copied](#what-gets-copied).
+
+A leaf value passed as root `data` resolves directly when copying; neither callback runs for that root. With `settings.copy:false`, the walk resolves `undefined` for any root.
+
+## Choose how much data to visit
+
+You control which work happens during traversal:
+
+| Return from `objectCallback` | Effect |
+| --- | --- |
+| `value` | Continue into this object or array normally |
+| `IGNORE()` | Remove the entire branch and stop visiting its contents |
+| `PASS()` | Keep the current value and skip key callbacks on its immediate properties |
+| `PASS(replacement)` | Use a replacement with the same rule as `PASS()` |
 
 ### Skip a branch
-Calling `reject()` from `objectCallback` drops the **entire subtree** at that key — not just the immediate property. Use it when you want to cut a whole section out of the result without having to walk into it and reject it key by key.
+
+Return `IGNORE()` before entering an object or array. None of its descendants will reach either callback.
 
 ```js
-let x = {
-          name      : 'Peter'
-        , password  : 'secret'
-        , metadata  : {
-                          ip      : '1.2.3.4'
-                        , session : 'abc-123'
-                        , device  : { os: 'mac', browser: 'safari' }
-                    }
-    };
+let data = { name:'Peter', archive:{ events:[1,2,3], details:{ count:3 } } };
 
-// Drop a single primitive (use keyCallback)
-const r1 = await walk ({
-      data: x
-    , keyCallback: ({ key, value, resolve, reject }) => {
-        if ( key === 'password' )   reject ()
-        else                       resolve ( value )
-    }
-})
-// r1.metadata is still fully present; only r1.password is gone.
-
-// Drop an entire subtree (use objectCallback)
-const r2 = await walk ({
-      data: x
-    , objectCallback: ({ key, value, resolve, reject }) => {
-        if ( key === 'metadata' )   reject ()
-        else                       resolve ( value )
-    }
-})
-// r2.password is still present; the whole r2.metadata subtree is gone.
+let result = await walk ({
+                          data
+                        , objectCallback : ({ value, key, IGNORE }) => key === 'archive' ? IGNORE() : value
+                    })
+// { name:'Peter' }
 ```
 
-`objectCallback` fires on the root too, so this also works at the top level (e.g. to short-circuit a `walk-async` by rejecting from the root call).
+From `keyCallback`, `IGNORE()` removes just that leaf. From the root object callback, it resolves an empty object or array matching the original root type; with copying disabled it resolves `undefined`.
 
+### Pass immediate values through
 
-### Ignore a key
+Return `PASS()` when an object's immediate values should avoid `keyCallback`. Nested objects and arrays still run `objectCallback`, and their own values run `keyCallback` normally.
 
 ```js
-let x = {
-          ls    : [ 1,2,3 ]
-        , name  : 'Peter'
-        , props : {
-                      eyeColor: 'blue'
-                    , age     : 47
-                    , height  : 176
-                    , sizes : [12,33,12,21]
-                }
-    };
-function keyFn ({value,key,resolve,reject}) {
-        if ( key === 'name' )   reject ()
-        else                    resolve ( value )
-}
+let data = { branch:{ count:2, nested:{ count:3 } }, outside:1 };
 
-walk ({
-            data : x
-          , keyCallback : keyFn
-      })
-  .then ( result => {
-              // result will copy all properties from x without the property 'name'.
-              // result.name === undefined
-      })
+let result = await walk ({
+                          data
+                        , objectCallback : ({ value, key, PASS }) => key === 'branch' ? PASS() : value
+                        , keyCallback    : ({ value }) => value * 2
+                    })
+// { branch:{ count:2, nested:{ count:6 } }, outside:2 }
 ```
 
-
-### Mask values
+To change the object and skip its immediate key callbacks, provide a replacement:
 
 ```js
-let x = {
-          ls    : [ 1,2,3 ]
-        , name  : 'Peter'
-        , props : {
-                      eyeColor: 'blue'
-                    , age     : 47
-                    , height  : 176
-                    , sizes : [12,33,12,21]
-                }
-    };
-walk ({
-          data:x
-        , keyCallback : ({resolve}) => resolve('xxx')
+let result = await walk ({
+                          data : { branch:{ count:2, nested:{ count:3 } } }
+                        , objectCallback : ({ value, key, PASS }) => key === 'branch' ? PASS ({ ...value, count:100 }) : value
+                        , keyCallback    : ({ value }) => value * 2
+                    })
+// { branch:{ count:100, nested:{ count:6 } } }
+```
+
+`PASS()` keeps the current value; `PASS(undefined)` explicitly replaces it with `undefined`. Simple replacements, including supported built-in values, are stored directly without `keyCallback`. For arrays, the rule covers immediate leaf elements and additional leaf properties. Root `PASS()` follows the same rule.
+
+Promises supplied to `PASS(replacement)` are awaited before classifying the replacement or checking circular references. A rejection propagates to the walk promise.
+
+Call the helpers and return their result. Returning the `IGNORE` or `PASS` function itself stores a function value. The internal instructions returned by these helpers do not appear in the result.
+
+## Deep forEach
+
+Use a callback to collect values, count entries, validate data, or log locations throughout a nested structure. Set `settings.copy:false` to run the walk without building a copied structure. You write the operation once; `walk` finds the matching values at every depth.
+
+```js
+let data = {
+                  scores  : [10,20]
+                , profile : { score:30 }
+                , archive : { scores:[100,200] }
+            };
+let total = 0;
+
+await walk ({
+          data
+        , settings : { copy:false }
+        , objectCallback : ({ value, key, IGNORE }) => key === 'archive' ? IGNORE() : value
+        , keyCallback : ({ value }) => {
+                              if ( typeof value === 'number' )   total += value
+                              return value
+                          }
     })
-  .then ( result => {
-          // 'result' will have the same structure as 'x' but all values are 'xxx'
-          // {
-          //      ls    : [ 'xxx','xxx','xxx' ]
-          //    , name  : 'xxx'
-          //    , props : {
-          //                  eyeColor: 'xxx'
-          //                , age     : 'xxx'
-          //                , height  : 'xxx'
-          //                , sizes : ['xxx','xxx','xxx','xxx']
-          //             }
-          //   }
+// total === 60
+```
+
+This is a deep `forEach` pattern with control over traversal. `IGNORE()` avoids visiting unwanted branches; `PASS()` avoids immediate key callbacks while continuing into nested containers. That can reduce the work compared with processing every value.
+
+With copying disabled, `walk` resolves `undefined`. It does not allocate result objects or arrays or insert copied properties. Paths and traversal bookkeeping are still prepared as needed.
+
+Callback rules stay the same: `IGNORE()` stops a branch, `PASS()` skips immediate key callbacks, and returned containers are still visited. `objectCallback` should return `value` to continue into an unchanged container; omitting its return stops traversal at that location. A `keyCallback` used only for side effects may omit its return. Return `value` if the same callback will also be used while copying.
+
+Returning a replacement changes what is visited without assigning that replacement to the source. Walk does not modify the input by itself; callbacks can still modify objects they receive. Omit `copy:false` to create a result as usual.
+
+## Finish when the job is done
+
+Both callbacks receive `FINISH`. Return its instruction or pass it to `resolve`, just like `IGNORE()` and `PASS()`. The two callbacks finish at different points:
+
+| Callback and return | Effect |
+| --- | --- |
+| Either callback: `FINISH()` | Omit the current value or branch, then stop immediately |
+| `keyCallback`: `FINISH(value)` | Include the supplied value directly, then stop immediately |
+| `objectCallback`: `FINISH(value)` | Select this final branch, run its key callbacks with `isFinished:true`, then stop |
+
+Later siblings and unrelated pending containers are not visited. In the selected final branch, nested objects and arrays are traversed for their leaf values, without further object callbacks. `isFinished` is `false` during ordinary key callbacks, and `true` for key callbacks processing that final branch, including replacement containers they return.
+
+```js
+let data = [12,22,33,44,55,66];
+
+let result = await walk ({
+                          data
+                        , keyCallback : ({ value, FINISH }) => {
+                                              if ( value === 33 )   return FINISH ( value )
+                                              return value
+                                          }
+                    })
+// [12,22,33]
+```
+
+Change the stopping return to `FINISH()` to get `[12,22]`. An explicit argument counts even when its value is `undefined`: `FINISH(undefined)` includes that value, while `FINISH()` omits it.
+
+An object callback can select a final branch:
+
+```js
+let data = { a:12, b:15, c:{ internal:44, in1:'bbb', in2:'ccc' }, after:55 };
+
+let result = await walk ({
+                          data
+                        , objectCallback : ({ key, value, FINISH }) => key === 'c' ? FINISH ( value ) : value
+                    })
+// { a:12, b:15, c:{ internal:44, in1:'bbb', in2:'ccc' } }
+```
+
+This example has no key callback, so the supplied branch is included directly: `result.c === data.c`. With `FINISH()` instead, the result is `{ a:12, b:15 }`.
+
+When a key callback exists, it controls what gets copied from that final branch:
+
+```js
+let result = await walk ({
+                          data : { a:12, b:15, c:{ internal:44, in1:'bbb', in2:'ccc' }, after:55 }
+                        , objectCallback : ({ key, value, FINISH }) => key === 'c' ? FINISH ( value ) : value
+                        , keyCallback : ({ value, isFinished, FINISH }) => {
+                                              if ( isFinished )   return FINISH ( value )
+                                              return value
+                                          }
+                    })
+// { a:12, b:15, c:{ internal:44 } }
+```
+
+Choose a different return while `isFinished` is true to change the final branch:
+
+| Return from the final key callbacks | Result inside `c` in this example |
+| --- | --- |
+| `value` | `{ internal:44, in1:'bbb', in2:'ccc' }` |
+| `IGNORE()` | `{}` |
+| `FINISH(value)` on the first leaf | `{ internal:44 }` |
+| `FINISH()` on the first leaf | `{}` |
+
+These examples use a flat final object. For nested data, ignoring every leaf preserves its containers, possibly empty. Stopping at the first leaf can leave containers already allocated before it. Values are visited in `Object.keys` order; choosing the first property depends on that order.
+
+`FINISH(value)` returned from a key callback includes the supplied value directly, including object or array references, without visiting its contents. From an object callback with no key callback, it also includes the value directly. With a key callback, the final branch is copied and transformed using the normal leaf return rules and cycle detection. `PASS()` on an earlier container does not suppress key callbacks in a newly selected final branch. Returning the `FINISH` function without calling it stores an ordinary function value, just like the other helpers.
+
+The result contains work already completed, without completing unrelated pending containers. For example, returning `FINISH()` from the key callback at `stop` in `{ queued:{ number:1 }, stop:2 }` leaves `{ queued:{} }`: the container was allocated before its contents were visited. Callback order stays the same within the selected work. On the root object callback, `FINISH()` resolves an empty object or array matching the input root; `FINISH(value)` follows the same final-branch rule. A simple root replacement is resolved directly without a key callback, as with ordinary root replacements.
+
+With `settings.copy:false`, either form stops traversal and walk still resolves `undefined`. Collect a match outside the callback when searching:
+
+```js
+let found;
+
+await walk ({
+          data : [{ id:1 },{ id:2 },{ id:3 }]
+        , settings : { copy:false }
+        , objectCallback : ({ value, FINISH }) => {
+                              if ( value.id === 2 ) {
+                                      found = value
+                                      return FINISH()
+                                  }
+                              return value
+                          }
     })
+// found: { id:2 }
 ```
 
-### Change object on condition
+Walk Async awaits callback completion and promises supplied to `FINISH(value)` before interpreting the instruction. Rejected payloads reject the walk; unresolved payloads remain in timeout diagnostics. For explicit settlement, use `resolve ( FINISH ( value ) )` or `resolve ( FINISH() )`. Calling the helper without returning or resolving its instruction has no effect.
+
+Stopping belongs to that walk only. Finishing a nested `walk` call does not finish the outer call.
+
+## Paths when you need them
+
+Both callbacks receive `breadcrumbs` and `parentPath` by default:
+
+| Location | `key` | `parentPath` | `breadcrumbs` |
+| --- | --- | --- | --- |
+| Root object callback | `'root'` | `[]` | `'root'` |
+| `data.profile.age` | `'age'` | `['root','profile']` | `'root/profile/age'` |
+| `data.items[0].name` | `'name'` | `['root','items','0']` | `'root/items/0/name'` |
+
+Build a full path with `[ ...parentPath, key ]`. Parent arrays are frozen and shared by siblings; create a new array when extending one.
+
+Use the array when property names contain `/`: `data['a/b'].c` has parent path `['root','a/b']`, while `data.a.b.c` has `['root','a','b']`. Both locations have the breadcrumb string `'root/a/b/c'`, so splitting breadcrumbs cannot reliably recover a path.
+
+Array keys refer to input locations, even when filtering changes the indexes in the result.
+
+### Settings
+
+Disable paths your callbacks do not use:
 
 ```js
-let x = {
-          ls    : [ 1,2,3 ]
-        , name  : 'Peter'
-        , props : {
-                      eyeColor: 'blue'
-                    , age     : 48
-                    , height  : 176
-                    , sizes : [12,33,12,21]
-                }
-    };
-
-function objectCallback ({ value:obj, key, resolve }) {
-    const {age, height} = obj;
-    if ( age && age > 30 ) {
-            resolve ({ age, height })
-            return
-        }
-    resolve ( obj )
-}
-
-walk ({
-          data: x
-        , objectCallback
-      })
-    .then ( result => {
-            // 'result.props' will have only 'age' and 'height' properties.
-            // {
-            //      ls    : [ 1,2,3 ]
-            //    , name  : 'Peter'
-            //    , props : {
-            //                  age     : 48
-            //                , height  : 176
-            //             }
-            //   }
-      })
+let result = await walk ({
+                          data : { password:'secret', name:'Peter' }
+                        , settings : { breadcrumbs:false, parentPath:false }
+                        , keyCallback : ({ value, key, IGNORE }) => key === 'password' ? IGNORE() : value
+                    })
+// { name:'Peter' }
 ```
 
+| Setting | Default | Effect of `false` |
+| --- | --- | --- |
+| `copy` | `true` | Walk without building a result; resolve `undefined` |
+| `breadcrumbs` | `true` | Skip preparing breadcrumb strings |
+| `parentPath` | `true` | Skip preparing parent-path arrays |
+| `detectCycles` | `true` | Skip circular-reference checks and their bookkeeping |
 
-## Migrating from `@peter.naydenov/walk`
+Only literal `false` disables a setting. Omitted settings remain enabled. Disabled path fields are absent from callback arguments; destructuring them gives `undefined`. With no callbacks, neither path is prepared.
 
-`walk-async` is the async sibling of [`@peter.naydenov/walk`](https://github.com/PeterNaydenov/walk). They share the same callback parameter names (`value`, `key`, `breadcrumbs`) and the same three-outcome contract. The only mechanical change is how you express the return value:
+Path preparation takes time and memory. Parent arrays grow with depth, so disabling unused paths is especially useful for deeply nested data. Path settings change metadata preparation. The `copy` setting controls result creation independently: `settings:{ copy:false }` still provides both paths, while `settings:{ copy:false, breadcrumbs:false, parentPath:false }` skips all three kinds of work.
 
-| `walk` (sync)                    | `walk-async` (async)         |
-| -------------------------------- | ---------------------------- |
-| `return value`                   | `resolve(value)`             |
-| `return newObject`               | `resolve(newObject)`         |
-| `return IGNORE`                  | `reject()`                   |
-
-The options shape is identical: `{ data, keyCallback, objectCallback }`. `walk-async` adds an optional `timeout` (milliseconds). The walk call itself becomes an `await` (or `.then`).
+Set `detectCycles:false` when you know the visited data and callback replacements have no circular references. This skips ancestor records, depth tracking, parent checks, and lookup maintenance. It is independent of copying and paths:
 
 ```js
-// walk
-const result = walk ({
-    data: user,
-    keyCallback: ({ value, key, IGNORE }) => key === 'password' ? IGNORE : value
-})
+let data = JSON.parse ( '{"items":[1,2,3]}' );
+let total = 0;
 
-// walk-async — same shape, just promise-based
-const result = await walk ({
-    data: user,
-    keyCallback: ({ value, key, resolve, reject }) => {
-        if ( key === 'password' )   reject ()
-        else                       resolve ( value )
-    }
-})
+await walk ({
+          data
+        , settings : { copy:false, breadcrumbs:false, parentPath:false, detectCycles:false }
+        , keyCallback : ({ value }) => { total += value }
+    })
+// total === 6
 ```
 
-If your callbacks don't actually need async work, prefer the sync `walk` — it's noticeably faster because it avoids the promise machinery. Reach for `walk-async` only when you have real async work inside the callbacks (database lookups, network calls, file reads, etc.) and the cost of multiple `walk` calls would be unacceptable.
+With detection disabled, callbacks must prune any cyclic branches before revisiting them; otherwise walk can continue indefinitely. Returned containers are subject to the same rule.
 
+## Measurements with different data structures
 
-## Timeout
+Run `node benchmarks/detectCycles.mjs` to compare cycle detection on and off with copying and both paths independently on and off. It uses pass-through callbacks, one warmup per setting, three samples, and rotating sample order. These historical timings were recorded before FINISH was added. The [recorded samples](benchmarks/detectCycles.results.json) use Node v26.10.0 on macOS arm64; times are medians in milliseconds, with copying enabled:
 
-Every callback must call `resolve` or `reject` on every code path. If some path forgets to do it, the promise returned by `walk` will never settle — and by default there is no error and no hint which callback is the reason. The optional `timeout` property (milliseconds) turns that silent hang into a rejection with diagnostics:
+| Shape | Both paths | Detection on | Detection off |
+| --- | --- | --- | --- |
+| 1,000,000-key flat object | On | 1322.17 | 1346.28 |
+| 1,000,000-key flat object | Off | 1203.09 | 1291.67 |
+| 100,000 records with nested metadata and tags | On | 1082.30 | 1080.45 |
+| 100,000 records with nested metadata and tags | Off | 800.08 | 766.23 |
+| 4,000-level child chain | On | 66.27 | 63.77 |
+| 4,000-level child chain | Off | 3.70 | 3.09 |
+
+These samples measure traversal overhead without callback I/O. Disabling detection did not improve every case. Path preparation dominated the deep-chain run; callback I/O, garbage collection, and workload shape can change the comparison. The complete record also includes no-copy samples. These measurements are evidence for choosing settings, not unit-test thresholds or a universal speed claim.
+
+The inputs used by the memory benchmark below are a 1,000,000-key flat object (`key0` through `key999999`), 100,000 records shaped as `{ id, name:'item', metadata:{ active:true, score:id, tags:['a','b'] } }`, and 4,000 nested `child` links ending at `{ leaf:1 }`. The older timing scripts use per-record names and a `number` leaf instead; their timings and these memory measurements come from separate runs.
+
+### Memory use
+
+`copy:false` avoids allocating the result, but traversal still needs temporary keys, queue entries, callback arguments, paths, promises, and cycle bookkeeping. These fresh async measurements use the three memory inputs described above, with both callbacks returning `value` and cycle detection enabled throughout.
+
+The table shows the **largest observed extra JavaScript heap usage during one awaited walk**, in MiB (1 MiB = 1,048,576 bytes). The input is already allocated and garbage-collected before the baseline is recorded, so its memory is excluded:
+
+| Operation and settings | Flat object | Nested records | Deep chain |
+| --- | ---: | ---: | ---: |
+| Copy, all settings enabled | 286.52 | 381.21 | 31.54 |
+| Copy, both paths disabled | 285.49 | 279.53 | 4.66 |
+| Walk without copying, both paths enabled | 284.60 | 322.35 | 29.99 |
+| Walk without copying, both paths disabled | 283.76 | 209.53 | 3.05 |
+
+Temporary allocations and garbage collection affect those figures. They describe sampled heap usage, rather than total bytes allocated or an exact peak. Disabling unused paths reduced observed heap usage substantially on the nested records and deep chain. For the flat object, observed heap usage changed little when paths or copying were disabled; no-copy mode still avoided retaining a result.
+
+Memory retained after garbage collection answers a different question: how much remains while the result is kept? These figures use default path settings and keep the input reachable:
+
+| Structure | Input heap | Extra heap with copy retained | Extra heap without copying |
+| --- | ---: | ---: | ---: |
+| Flat object | 77.76 | 48.09 | 0.08 |
+| Nested records | 12.97 | 29.27 | 0.16 |
+| Deep chain | 0.13 | 0.28 | 0.06 |
+
+All values are MiB. Small residual increases include runtime and compiled-code overhead. Disabling paths left retained copy sizes essentially unchanged. After releasing results, allowing one event-loop turn for the async frame to release its completed await value, and collecting again, the median increase was below 0.13 MiB for every combination. This checks these workloads; it does not establish that every possible callback or input is free of memory leaks.
+
+Measured on 2026-10-04, using Node v26.10.0 on darwin arm64, an Apple M3 Max, and 128 GiB of RAM. Each of the 12 combinations ran five times in fresh, sequential Node processes, with rotating settings order and no warmup walks. Heap usage was sampled every 1,024 callbacks for the flat object and nested records, every 64 callbacks for the deep chain, and immediately after awaited traversal. Explicit garbage collection ran before the input baseline, after traversal with the result retained, and after releasing the result; none was forced during traversal. The release checkpoint includes an awaited `setImmediate` to clear the prior await result from the async frame. Tables show medians of the five samples. Instrumented memory runs are separate from the timing measurements above.
+
+The [benchmark script](benchmarks/memory.mjs) and [complete samples](benchmarks/memory.results.json) include ranges, a hash of the measured async source, verified callback counts, and the process RSS high-water mark through the walk. RSS includes Node, input construction, and memory outside the JavaScript heap; it is recorded separately from extra heap usage.
+
+Reproduce the measurements from the repository root:
+
+```sh
+node benchmarks/memory.mjs
+```
+
+The script enables garbage collection in its worker processes, verifies expected callback counts and result samples, and writes fresh async measurements to `benchmarks/memory.results.json`.
+
+### Generated regression tests
+
+The [generated test suite](test/11-generated.test.js) uses 32 fixed seeds, so a failing structure can be reproduced. It checks 768 transformation cases across copying, path settings, and cycle detection. Inputs mix objects, sparse arrays, unusual property names, primitives, built-in leaves, shared containers, and circular references. Some branches exceed the depth at which ancestor lookup changes. Circular inputs are tested with detection enabled; acyclic inputs exercise both detection settings.
+
+Transformations are compared with a separate recursive reference implementation. Tests check transformed values, key order, array compaction, independent copies of shared containers, ancestor links, callback metadata, `IGNORE()`, local `PASS()`, replacements, and unchanged source containers. Another 384 early-finish combinations check omitted or retained final values, stopping at the visited leaf prefix, discarded pending work, and final-branch key callbacks after `PASS()`.
+
+Run all regression tests and enforce full source coverage with:
+
+```sh
+npm run cover
+```
+
+## What gets copied
+
+`walk` creates new containers for objects and arrays. It works with their own enumerable string keys. Primitives retain their values, and the following values retain their references:
+
+| Value | Behaviour |
+| --- | --- |
+| Functions and DOM nodes | Same reference in the result |
+| `Date`, `RegExp` | Same reference in the result |
+| `Map`, `Set`, `WeakMap`, `WeakSet` | Same reference in the result |
+| `ArrayBuffer`, `DataView`, typed arrays | Same reference in the result |
+
+These values reach `keyCallback` as leaves; their contents are not walked. The same rules apply to values returned by callbacks.
 
 ```js
-function objectCallbackFn ({ value, key, breadcrumbs, resolve, reject }) {
-        if ( breadcrumbs === 'root/props' )   return   // BUG: this path never resolves
-        resolve ( value )
-    }
+let data = { profile:{ name:'Peter' }, when:new Date ( '2026-01-15' ), greet:() => 'Hello' };
+let result = await walk ({ data })
 
-walk ({ data, objectCallback: objectCallbackFn, timeout: 5000 })
-    .catch ( err => {
-              console.error ( err.message )
-              // walk-async: timed out after 5000ms; callbacks still pending:
-              //   - objectCallback at 'root/props'
-        })
+result.profile !== data.profile  // true: a new object
+result.when === data.when        // true: the same Date
+result.greet === data.greet      // true: the same function
 ```
 
-The error message lists the breadcrumbs of every callback that was started but never resolved or rejected, so the broken code path can be found directly.
+The result is editable; `walk` does not freeze it. Copying alone does not modify the source. Callback values refer to the source or a returned replacement, so modifying `value` inside a callback can modify the original data. Return a new object, as in `PASS ({ ...value, count:100 })`, when you want to avoid that.
 
-Notes:
- - `timeout` is disabled by default. Without it the behavior is exactly as before;
- - The limit applies to the whole walk, not to a single callback. Set it well above the worst-case duration of the legitimate async work inside the callbacks — it is a debugging safety net, not a scheduler;
- - When callbacks finish in time, the timer is cleared and the result is delivered as usual.
+Array elements are copied into consecutive indexes. Sparse holes and ignored elements are omitted. Additional enumerable properties such as `'-1'` and `'01'` keep their names. Arrays from another JavaScript context are recognized as arrays.
 
+### Circular references
 
-## Limitations
-- `walk-async` does not descend into built-in types (`Date`, `RegExp`, `Map`, `Set`, `WeakMap`, `WeakSet`, `ArrayBuffer`, `DataView`, typed arrays, DOM nodes, functions) — they are passed by reference, whether they appear in the input or are returned by a callback;
-- `walk-async` can not execute another `walk-async` from inside the callbacks;
-- The walk promise does not settle until every callback has resolved or rejected. Use the `timeout` option to turn a forgotten `resolve`/`reject` into a rejection with diagnostics.
+A reference back to a parent becomes a reference to that parent's copy. Walk closes the circle without visiting the parent's contents again:
 
+```js
+let data = { number:1 };
+data.self = data
 
-## See also
-- [`@peter.naydenov/walk`](https://github.com/PeterNaydenov/walk) — the sync sibling. Same callback shape, same three-outcome contract, no promise machinery. Use it when your callbacks don't need async work.
+let result = await walk ({ data })
+result !== data         // true: a new object
+result.self === result  // true: the circle stays inside the copy
+```
+
+Object callbacks still run at circular properties, so they can remove the reference with `IGNORE()` or replace its value. Detection checks the returned container against its ancestors; containers returned by `keyCallback` follow the same rule. With `settings.copy:false`, walk stops at the circular reference without building a result. Path settings do not affect detection.
+
+Detection is enabled by default. Only literal `false` in `settings.detectCycles` disables it.
+
+An object shared by separate branches is copied independently in each branch. Only a reference back to an ancestor closes a circle. Walk checks the short parent chain for shallow data and uses an internal ancestor lookup for deeper branches.
+
+## Callback order
+
+`objectCallback` sees the root first. At each container, keys are processed in `Object.keys` order. Nested object callbacks run when their property is encountered; processing those containers' contents is deferred until the current container's keys finish. Containers are then processed in the order they were scheduled. Each callback completes before the next one starts, including across awaited delays. This is breadth-first over container contents, with no exit or post-order callback. Sibling callbacks are no longer started concurrently.
+
+Object callbacks see containers before their contents reach key callbacks. Replacement containers follow the same traversal rules. `IGNORE()` prevents further visits within a branch; `PASS()` affects only immediate key callbacks. `FINISH()` stops immediately. `FINISH(value)` from a key callback includes the value directly and stops; from an object callback, it selects the final branch for key callbacks with `isFinished:true`, without further object callbacks. Without a key callback, it includes the value directly.
+
+Nested containers are processed iteratively through a work queue. Processed entries are cleared as the walk advances, releasing their references to containers and paths.
+
+Callbacks can await another finite `walk` call. Each walk owns its queue and ancestor lookup. Returning a container normally is enough to let the current walk visit its contents; an additional walk performs additional work.
+
+## Reuse your rules
+
+Keep related transformations in one callback instead of making a separate copy for each rule. When a rule is useful in several places, create a callback factory:
+
+```js
+function omitKeys ( ...keys ) {
+    const omitted = new Set ( keys );
+    return ({ value, key, IGNORE }) => omitted.has ( key ) ? IGNORE() : value
+} // omitKeys func.
+
+let result = await walk ({
+                          data : { name:'Peter', password:'secret', token:'abc' }
+                        , keyCallback : omitKeys ( 'password', 'token' )
+                    })
+// { name:'Peter' }
+```
+
+The factory is your application code. `walk` stays focused on traversal, callbacks, and building the result.
+
+## Scope
+
+- With cycle detection enabled, circular references to ancestors are preserved inside the copy. Repeated references on separate branches are copied independently; their shared identity is not preserved.
+- Non-enumerable and symbol keys, object prototypes, and property descriptors are not preserved. Enumerable getters contribute their returned values.
+- Callbacks may return values or promises. Returned promises are awaited. Thrown errors and rejected promises reject the walk; use `IGNORE()` to remove a branch without failing the walk.
+- Built-in values listed above are shared by reference. Use a suitable clone operation for those values if they need independent copies.
+
+## Links
+
 - [Release history](Changelog.md)
-
+- [Migration guide](Migration.guide.md)
+- [walk](https://github.com/PeterNaydenov/walk)
 
 ## Credits
-'@peter.naydenov/walk-async' was created and supported by Peter Naydenov.
+
+Created and maintained by Peter Naydenov.
 
 ## License
-'@peter.naydenov/walk-async' is released under the MIT License.
+
+Released under the MIT License.
