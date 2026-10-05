@@ -10,15 +10,11 @@ export default [
 		output: {
 			name: 'walkAsync',
 			file: 'dist/walk-async.umd.js',
-			format: 'umd',
-            globals: {
-                        'ask-for-promise': 'askForPromise'
-                    }
+			format: 'umd'
 		},
-        external : [ 'ask-for-promise' ],
 		plugins: [
-			resolve(), // so Rollup can find `ms`
-			commonjs() // so Rollup can convert `ms` to an ES module
+			resolve(), // Resolve imported modules for the browser build
+			commonjs()
 			, terser()
 		]
 	},
@@ -31,7 +27,6 @@ export default [
 	// `file` and `format` for each target)
 	{
 		input: 'src/main.js',
-		external: ['ask-for-promise'],
 		output: [
 			{ file: 'dist/walk-async.cjs'    , format: 'cjs' },
 			{ file: 'dist/walk-async.esm.mjs', format: 'es' }
