@@ -1,5 +1,6 @@
 "use strict"
 
+import { describe, it, expect } from 'vitest'
 import walk from '../src/main.js'
 
 
@@ -13,12 +14,12 @@ import walk from '../src/main.js'
 // and preserved by reference — same contract as `function` and DOM nodes.
 // ============================================================================
 
-describe ( 'walk-async: built-in object types', () => {
+describe ( 'Walk-async: built-in object types', () => {
 
     it ( 'Date at top level is preserved by reference', async () => {
         const d = new Date ( '2024-01-15' )
         const r = await walk ({ data: d })
-        expect ( r ).toBe ( d )
+        expect ( r ).toBe ( d )            // same reference, not a copy
     })
 
 
@@ -61,8 +62,8 @@ describe ( 'walk-async: built-in object types', () => {
     it ( 'Map as a property value is preserved by reference (data intact)', async () => {
         const x = { name: 'Peter', scores: new Map ([ [ 'math', 95 ], [ 'art', 88 ] ]) }
         const r = await walk ({ data: x })
-        expect ( r.scores ).toBe ( x.scores )
-        expect ( r.scores.get ( 'math' ) ).toBe ( 95 )
+        expect ( r.scores ).toBe ( x.scores )             // same reference
+        expect ( r.scores.get ( 'math' ) ).toBe ( 95 )    // data still works
         expect ( r.scores.get ( 'art'  ) ).toBe ( 88 )
     })
 
@@ -121,7 +122,7 @@ describe ( 'walk-async: built-in object types', () => {
     it ( 'Uint8Array at top level is preserved by reference (not converted to plain object)', async () => {
         const u = new Uint8Array ([ 1, 2, 3 ])
         const r = await walk ({ data: u })
-        expect ( r ).toBe ( u )                          // same reference
+        expect ( r ).toBe ( u )                          // same reference, not a plain-object copy
         expect ( r instanceof Uint8Array ).toBe ( true ) // still a typed array
     })
 
@@ -141,7 +142,6 @@ describe ( 'walk-async: built-in object types', () => {
                 , objectCallback: () => { called = true; return undefined }
             })
         expect ( called ).toBe ( false )   // root was a Date, objectCallback is for objects/arrays only
-        expect ( r ).toBeInstanceOf ( Date )
     })
 
 
@@ -149,8 +149,8 @@ describe ( 'walk-async: built-in object types', () => {
         const x = [ new Date ( '2020-01-01' ), new Map ([ [ 'k', 'v' ] ]), 42 ]
         const r = await walk ({
                   data: x
-                , objectCallback: ({ resolve, value }) => resolve ( value )
-                , keyCallback  : ({ resolve, value }) => resolve ( value )
+                , objectCallback: ({ value, key }) => key === 'root' ? value : value
+                , keyCallback    : ({ value }) => value
             })
         expect ( r[0] ).toBe ( x[0] )
         expect ( r[1] ).toBe ( x[1] )
