@@ -1,43 +1,197 @@
 # Migration Guides
 
-Upgrade notes for non-trivial `walk-async` releases. For the full per-release list of changes, see the [Changelog](Changelog.md); this guide focuses on what *you* have to change in your code.
+Upgrade notes for non-trivial `walk-async` releases. For the full per-release list of changes, see the [Changelog](Changelog.md).
 
-Most common first, then version history newest-first.
+## From v.6.x.x - v.7.x.x (Unreleased)
+
+### Agent skill
+
+The skill is now named `walk-async` and lives in `skills/walk-async/`, replacing
+`.agents/skills/git-walk-async/`. Update installers or integrations that use
+the old path, and include the full folder with all four linked references.
+There is one canonical portable skill; local `.claude` and `.agents` settings
+are not maintained copies. See [skill integration](skills/README.md).
+
+The current `package.json` `files` whitelist excludes the new folder. Replace
+the obsolete `".agents/skills"` entry with `"skills"` to include the skill, all
+references, and the integration README linked from the package documentation. This manifest update is left for
+the maintainer; the skill/documentation move does not change package.json.
+Verify the folder with `npm pack --dry-run --json` after making that change.
+
+### Return values and awaited callbacks
+
+Callbacks now share the synchronous library's return-value API. Change `resolve(value)` to `return value`, and `reject()` to `return IGNORE()` when adopting it:
+
+```js
+// version 6: still supported in version 7
+keyCallback : ({ value, key, resolve, reject }) => {
+                  if ( key === 'password' )   reject ()
+                  else                       resolve ( value )
+              }
+
+// version 7
+keyCallback : async ({ value, key, IGNORE }) => {
+                  if ( key === 'password' )   return IGNORE()
+                  return await refresh ( value )
+              }
+```
+
+Both plain returns and returned promises are supported. The walk itself still returns a Promise. Await it to get the copy, finish side effects, or catch an error. A thrown error or a rejected promise from either callback now rejects the walk instead of leaving internal tasks pending. Finite awaited nested walks are supported; each call has independent traversal and ancestor state.
+
+Existing `resolve`/`reject` callbacks remain supported. Reading either field selects explicit settlement for that invocation, so settle every path with one of them. An async callback's returned promise is awaited even when it calls `resolve` early; `resolve` also awaits a supplied promise. Do not destructure or spread unused settlement fields when switching to returns. `reject()` continues to prune the current key or branch; use a throw or a rejected promise to fail the walk. The existing `timeout` option still reports pending callbacks and now covers unresolved returned promises too. It does not cancel callback I/O.
+
+### Callable IGNORE
+
+`IGNORE` is a function in both callbacks. When moving code from the synchronous v6 API, replace `return IGNORE` with `return IGNORE()`:
+
+```js
+// synchronous version 6
+keyCallback : ({ value, key, IGNORE }) => key === 'password' ? IGNORE : value
+
+// version 7, synchronous or asynchronous
+keyCallback : ({ value, key, IGNORE }) => key === 'password' ? IGNORE() : value
+```
+
+Its private token removes a leaf or an entire container branch, including descendants. Ignoring the root resolves `[]` for an original array root or `{}` for an original object root when copying; without copying it resolves `undefined`. Returning the helper function itself stores ordinary function data. Async v6 used `reject()` rather than a public IGNORE constant; those callbacks do not need this change. TypeScript now includes `IgnoreFunction`, `PassFunction`, `ObjectCallbackArgs`, and `Settings` alongside `Resolve` and `Reject`. Metadata fields are optional and parent paths are read-only.
+
+### Callback order
+
+Sibling callbacks used to start concurrently. Version 7 awaits them one at a time in `Object.keys` order to match the synchronous library. The root object callback runs first; child object callbacks run when their properties are encountered, and those containers' contents are deferred until the current container finishes. Queued containers run in scheduling order, breadth-first over contents. There is no exit callback.
+
+Code that depends on sibling callbacks overlapping must move that concurrency into application code. Array output, side effects, replacement handling, and ancestor lookup now follow the same defined order even when callbacks await different delays.
+
+### Getter and array fixes
+
+Properties are read once before classification. Getters no longer run twice. `Array.isArray` recognizes arrays from other JavaScript contexts. Only canonical indexes from `0` through `2^32 - 2` become consecutive output elements. Sparse holes and removed indexes compact; numeric-looking non-index properties such as `'01'`, `'-1'`, and `'4294967295'` retain their original names. Own `'__proto__'` properties remain ordinary data without changing the result prototype.
+
+### Settings, parentPath and PASS
+
+Existing calls do not need a `settings` object. Both callbacks now receive a read-only `parentPath` array by default, alongside `breadcrumbs`. The parent path excludes `key`; the root `objectCallback` receives `parentPath:[]` and `key:'root'`.
+
+Set `settings.breadcrumbs` or `settings.parentPath` to literal `false` to skip preparing an unused argument. Omitted settings remain enabled. Disabled arguments are absent, so destructuring them gives `undefined`; TypeScript declares both metadata fields as optional.
+
+```js
+let result = await walk ({
+                          data
+                        , settings : { breadcrumbs:false, parentPath:false }
+                        , keyCallback : ({ value }) => value
+                    })
+```
+
+Default calls now prepare parent arrays when callbacks are present. Disable `parentPath` when the callback does not use it, particularly for deeply nested data. With no callbacks, both paths are skipped automatically.
+
+`objectCallback` also receives the `PASS` function. Return `PASS()` to copy the current value and skip `keyCallback` only on its immediate properties, or `PASS(modifiedValue)` to use a replacement with the same rule. Nested objects and arrays still run their own callbacks normally. `IGNORE()` removes the entire branch and stops visiting its contents.
+
+`PASS()` and `PASS(undefined)` have different meanings: the first keeps the current value; the second explicitly replaces it with `undefined`. A simple replacement is stored directly without `keyCallback`. Neither instruction appears in the result.
+
+Walk Async also awaits promises supplied to `PASS(replacement)` before interpreting the replacement and checking its ancestors. Rejected replacements reject the walk; unresolved replacements remain in timeout diagnostics.
+
+### Finish the entire walk
+
+Both callbacks now receive the `FINISH` function. Like `IGNORE()` and `PASS()`, return its instruction or pass it to `resolve`. Calling it without returning or resolving the instruction has no effect on traversal.
+
+```js
+let result = await walk ({
+                          data : [12,22,33,44,55,66]
+                        , keyCallback : ({ value, FINISH }) => {
+                                              if ( value === 33 )   return FINISH ( value )
+                                              return value
+                                          }
+                    })
+// [12,22,33]
+```
+
+`FINISH()` omits the current value or branch and stops immediately. From `keyCallback`, `FINISH(value)` includes the supplied value directly and stops immediately, without copying or visiting its contents. An explicit argument counts even when it is `undefined`.
+
+From `objectCallback`, `FINISH(value)` selects the final branch. If a key callback exists, it processes the supplied value's leaves with the new boolean argument `isFinished:true`, including nested containers and containers returned by key callbacks. No further object callbacks run, and unrelated pending work is discarded. Ordinary key callbacks receive `isFinished:false`. Return `value` to preserve final leaves, `IGNORE()` to drop them while continuing through the final branch, or `FINISH()` / `FINISH(value)` to stop immediately at a final leaf. Dropping leaves can leave empty nested containers. Earlier `PASS()` instructions do not suppress key callbacks in the selected final branch.
+
+Without a key callback, `FINISH(value)` from an object callback includes the value directly. Supplied objects and arrays then keep their references. With a key callback, the final branch is copied using the normal leaf return rules and cycle detection. A simple root replacement remains a direct return without a key callback, matching the existing root contract.
+
+When copying, the result contains work completed before stopping. Unrelated containers already allocated but waiting for traversal can remain empty or partially populated. Finishing from the root object callback without a value resolves an empty object or array matching the input root; supplying a container follows the final-branch rule. Without copying, finishing still controls traversal and walk resolves `undefined`. Collect search results externally in that mode.
+
+Walk Async awaits callback completion and promises supplied to `FINISH(value)`, including through `resolve ( FINISH ( value ) )`. Rejected payloads reject the walk; unresolved payloads remain in timeout diagnostics.
+
+This is an optional addition; existing callbacks do not need changes. Finishing is local to each walk, including nested calls. TypeScript declares the shared helper as `FinishFunction` and the key callback arguments as `KeyCallbackArgs`, including `isFinished:boolean`.
+
+### Walk without a copy
+
+Set `settings.copy` to literal `false` to run callbacks without creating result objects or arrays. Walk resolves `undefined` in this mode, including for simple, ignored, or replaced roots. Copying remains enabled when the setting is omitted or has any other value.
+
+```js
+let values = [];
+await walk ({
+          data : { number:1, nested:{ number:2 } }
+        , settings : { copy:false }
+        , keyCallback : ({ value }) => { values.push ( value ) }
+    })
+// values: [1,2]
+```
+
+Callback order and path arguments stay the same. `IGNORE()` still prunes branches; `PASS()` and `PASS(value)` still skip immediate key callbacks while visiting nested objects normally. Returned replacement containers are visited without being assigned to the source.
+
+An object callback must still return the current or replacement value to continue into it. A key callback used only for side effects may omit its return. Metadata settings are independent of copying; disable unused paths separately.
+
+### Circular references
+
+Walk now detects references back to an ancestor instead of following them indefinitely. When copying, the reference points to that ancestor's copy: if `data.self === data`, then `result.self === result`. With `settings.copy:false`, traversal stops at that edge and resolves `undefined` as usual.
+
+Object callbacks still receive circular properties and can ignore or replace them. The returned container is checked against the current branch's ancestors before visiting its contents. This also applies to containers returned by `keyCallback`. Repeated references on separate branches are still copied independently. No new setting or callback argument is required; detection works with both path settings disabled.
+
+Detection defaults to true. Set `settings.detectCycles` to literal `false` to skip the checks and all ancestor bookkeeping when the visited data and callback replacements are known to be acyclic. Omitted settings and other values keep detection enabled. Copying and metadata settings remain independent.
+
+```js
+let result = await walk ({
+                          data : JSON.parse ( '{"nested":{"number":1}}' )
+                        , settings : { detectCycles:false }
+                    })
+// { nested:{ number:1 } }
+```
+
+With detection disabled, callbacks must prune cyclic branches before revisiting them; otherwise traversal can continue indefinitely. Callback order and return rules are unchanged.
+
+### Traversal performance
+
+Nested containers now use a work queue instead of generator wrappers. Processed entries are cleared to release their container and path references earlier. Callback order and return behaviour stay the same; no changes to your callbacks are required for this optimization. Walk no longer uses generator functions, so a generator polyfill is no longer needed for the library itself.
+
+Pending descendants keep links to their ancestor containers for circular-reference detection. Shallow branches use the short parent chain; deeper branches use an internal lookup containing only the current branch's ancestors. This avoids repeatedly scanning long chains. Detection adds bookkeeping even when path preparation is disabled.
+
+
+### Package declarations
+
+The generated declarations describe the new settings, helpers, optional metadata, and Promise return contract. The package now includes a `types` condition before the runtime conditions in `package.json` for modern TypeScript resolution:
+
+```json
+"exports": {
+  ".": {
+    "types": "./types/main.d.ts",
+    "import": "./dist/walk-async.esm.mjs",
+    "require": "./dist/walk-async.cjs",
+    "default": "./dist/walk-async.umd.js"
+  },
+  "./package.json": "./package.json",
+  "./dist/*": "./dist/*",
+  "./src/*": "./src/*"
+}
+```
+
+Strict package-name imports now resolve declarations under `NodeNext` and `Bundler`. The package exports were verified with strict ESM, CommonJS default-import, and bundler consumers.
 
 
 
 ## From `@peter.naydenov/walk` (sync sibling)
 
-`walk-async` is the async sibling of [`@peter.naydenov/walk`](https://github.com/PeterNaydenov/walk). They share the same callback parameter names (`value`, `key`, `breadcrumbs`) and the same three-outcome contract. The only mechanical change is how you express the return value:
-
-| `walk` (sync)                    | `walk-async` (async)         |
-| -------------------------------- | ---------------------------- |
-| `return value`                   | `resolve(value)`             |
-| `return newObject`               | `resolve(newObject)`         |
-| `return IGNORE`                  | `reject()`                   |
-
-The options shape is identical: `{ data, keyCallback, objectCallback }`. `walk-async` adds an optional `timeout` (milliseconds). The walk call itself becomes an `await` (or `.then`).
+For version 7 of both packages, keep the callbacks and settings, change the import, and await the walk:
 
 ```js
-// walk
-const result = walk ({
-    data: user,
-    keyCallback: ({ value, key, IGNORE }) => key === 'password' ? IGNORE : value
-})
+import walk from '@peter.naydenov/walk-async'
 
-// walk-async — same shape, just promise-based
-const result = await walk ({
-    data: user,
-    keyCallback: ({ value, key, resolve, reject }) => {
-        if ( key === 'password' )   reject ()
-        else                       resolve ( value )
-    }
-})
+let result = await walk ({
+                          data : { name:'Peter', password:'secret' }
+                        , keyCallback : ({ value, key, IGNORE }) => key === 'password' ? IGNORE() : value
+                    })
 ```
 
-If your callbacks don't actually need async work, prefer the sync `walk` — it's noticeably faster because it avoids the promise machinery. Reach for `walk-async` only when you have real async work inside the callbacks (database lookups, network calls, file reads, etc.) and the cost of multiple `walk` calls would be unacceptable.
-
-
+Async callbacks may await I/O and return their result. Both packages share paths, replacement rules, local `PASS`, callable `IGNORE`, no-copy traversal, and ancestor-cycle handling. Walk Async additionally retains explicit `resolve`/`reject` callbacks and `timeout` diagnostics. It awaits callback results; the synchronous library does not. For pre-v7 synchronous code, change `return IGNORE` to `return IGNORE()` too.
 
 ## From v.3.x.x - v.6.x.x
 
