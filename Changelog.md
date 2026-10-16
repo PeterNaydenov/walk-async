@@ -1,6 +1,12 @@
 # Release History
 
 
+
+### 7.0.1 (2026-10-16)
+- [x] Dependency updates. Ask-for-promise to version 3.2.1;
+
+
+
 ### 7.0.0 (2026-10-05)
 - [x] Docs: Update the skill;
 - [x] Feature: Added private `FINISH()` / `FINISH(value)` instructions to both callbacks. Omit and stop immediately without an argument; key callbacks include supplied values directly, while object callbacks select the final branch for key callbacks with `isFinished:true` and suppress further object callbacks. Promised payloads and explicit settlement are awaited; ordinary key callbacks receive `isFinished:false`;
