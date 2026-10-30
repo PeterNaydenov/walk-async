@@ -8,10 +8,13 @@ import PASS, { isPass } from "./pass.js";
 import IGNORE, { isIgnore } from "./ignore.js";
 import { isFinish } from "./finish.js";
 import runCallback from "./runCallback.js";
+import runTask from "./runTask.js";
 
 
 
-async function copyObject ( resource, result, extend, cb, breadcrumbs, settings, control, parentPath, pass, parent, ancestors, pending, ...args ) {
+function copyObject ( resource, result, extend, cb, breadcrumbs, settings, control, parentPath, pass, parent, ancestors, pending, ...args ) {
+    return runTask ( copy() )
+    function* copy () {
     let
           [ keyCallback, objectCallback ] = cb
         , keys = Object.keys ( resource )
@@ -34,7 +37,7 @@ async function copyObject ( resource, result, extend, cb, breadcrumbs, settings,
                     if ( type !== 'simple' && objectCallback && !control.isFinished ) {
                                         const callbackArgs = createCallbackArgs ( item, k, IGNORE, br, parentPath, settings )
                                         callbackArgs.PASS = PASS
-                                        const replacement = await runCallback ( objectCallback, callbackArgs, pending, 'objectCallback', ...args )
+                                        const replacement = yield runCallback ( objectCallback, callbackArgs, pending, 'objectCallback', ...args )
                                         if ( isFinish ( replacement ) ) {
                                                 if ( !replacement.hasValue || !keyCallback ) {
                                                         finish ( replacement, result, k, canInsert, settings, control )
@@ -66,7 +69,7 @@ async function copyObject ( resource, result, extend, cb, breadcrumbs, settings,
                                         }
                                     const callbackArgs = createCallbackArgs ( item, k, IGNORE, br, parentPath, settings );
                                     callbackArgs.isFinished = control.isFinished
-                                    let keyRes = await runCallback ( keyCallback, callbackArgs, pending, 'keyCallback', ...args );
+                                    let keyRes = yield runCallback ( keyCallback, callbackArgs, pending, 'keyCallback', ...args );
                                     if ( isFinish ( keyRes ) ) {
                                             finish ( keyRes, result, k, canInsert, settings, control )
                                             return parents
@@ -114,6 +117,7 @@ async function copyObject ( resource, result, extend, cb, breadcrumbs, settings,
                         }
             }
     return parents
+    }
 } // copyObject func.
 
 
