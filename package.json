@@ -24,13 +24,13 @@
     "Changelog.md",
     "Migration.guide.md",
     "LICENSE",
-    ".agents/skills"
+    "skills"
   ],
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
     "cover": "vitest run --coverage",
-    "build": "rollup -c",
+    "build": "vite build",
     "postbuild": "tsc -p tsconfig.json"
   },
   "repository": {
@@ -40,14 +40,10 @@
   "author": "Peter Naydenov",
   "license": "MIT",
   "dependencies": {
-    "ask-for-promise": "^3.2.1"
+    "ask-for-promise": "^3.2.2"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^29.0.3",
-    "@rollup/plugin-node-resolve": "^16.0.3",
-    "@rollup/plugin-terser": "^1.0.2",
     "@vitest/coverage-v8": "5.0.5",
-    "rollup": "^4.66.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
     "vitest": "5.0.5"
