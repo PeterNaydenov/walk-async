@@ -2,6 +2,17 @@
 
 
 
+### 7.0.2 (2026-10-31)
+- [x] Dependency updates. Ask-for-promise to version 3.2.2;
+- [x] Restore `ask-for-promise` for traversal and callback settlement, replacing the library's internal async/await implementation while keeping the current callback and error behavior;
+- [x] Build: The build moved from Rollup to Vite. Vite builds with Rolldown and resolves the modules on its own. The 'rollup' and the three '@rollup/plugin-*' dev dependencies are gone;
+- [x] Fix: '@rollup/plugin-node-resolve' was removed from the build. It was not needed, and its 'deepmerge' dependency had a prototype poisoning advisory with no fixed version;
+- [x] Build: The build target is pinned to ES2015. The bundles carried the syntax of the source, so the output level was an accident. The target makes it a guarantee;
+- [x] The UMD bundle calls the AMD loader with the standard 'define ( dependencies, factory )' signature. The AMD mock of the distribution test follows the signature now;
+- [x] Test: The examples of the skill are run against the source and the shipped bundle. A change in the bundle that breaks a documented example fails the suite now;
+
+
+
 ### 7.0.1 (2026-10-16)
 - [x] Dependency updates. Ask-for-promise to version 3.2.1;
 
