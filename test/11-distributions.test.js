@@ -14,7 +14,9 @@ runInNewContext ( source, browser )
 const commonjs = { module:{ exports:{} }, exports:{}, setTimeout, clearTimeout };
 runInNewContext ( source, commonjs )
 let amd;
-const define = factory => { amd = factory() };
+// The AMD signature is 'define ( dependencies, factory )'. The factory only
+// shorthand is accepted as well, so the mock works with every wrapper.
+const define = ( dependencies, factory ) => { amd = ( typeof dependencies === 'function' ? dependencies : factory )() };
 define.amd = true
 runInNewContext ( source, { define, setTimeout, clearTimeout } )
 const formats = [

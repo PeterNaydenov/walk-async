@@ -6,6 +6,7 @@ import { resolve, dirname, relative, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import walk from '../src/main.js'
+import bundled from '../dist/walk-async.cjs'
 
 
 
@@ -47,7 +48,7 @@ function checkLinks ( base, filename, portable ) {
 
 
 
-async function runExample ( code, mode ) {
+async function runExample ( code, mode, implementation = walk ) {
     const events = [];
     let active = 0, maxActive = 0;
     function callback ( fn, kind ) {
@@ -76,7 +77,7 @@ async function runExample ( code, mode ) {
         const config = { ...options };
         if ( options.keyCallback )      config.keyCallback = callback ( options.keyCallback, 'key' )
         if ( options.objectCallback )   config.objectCallback = callback ( options.objectCallback, 'object' )
-        const task = walk ( config );
+        const task = implementation ( config );
         expect ( task ).toBeInstanceOf ( Promise )
         return task.then ( result => { expect ( options.data ).toEqual ( original ); return result } )
     } // measuredWalk func.
@@ -130,9 +131,15 @@ describe ( 'Walk-async: portable skill', () => {
 
 
 
-    describe.each ([ 'as written', 'promise', 'resolve' ]) ( 'Skill examples: %s callbacks', mode => {
+    // The examples run against the source and against the shipped bundle.
+    // The bundle is what the consumers get, and it is built separately.
+    describe.each ([ 'source', 'bundle' ]) ( 'Skill examples from the %s', origin => {
+
+        const implementation = origin === 'bundle' ? bundled : walk;
+
+        describe.each ([ 'as written', 'promise', 'resolve' ]) ( 'Callback modes: %s', mode => {
         it.each ( snippets ) ( '$heading', async ({ heading, code }) => {
-                    const observed = await runExample ( code, mode );
+                    const observed = await runExample ( code, mode, implementation );
                     const { result, data, events } = observed;
                     const keys = events.filter ( event => event.kind === 'key' );
                     const objects = events.filter ( event => event.kind === 'object' );
@@ -202,6 +209,7 @@ describe ( 'Walk-async: portable skill', () => {
                     }
                     if ( !['Process a final branch','Settle a final branch payload'].includes ( heading ) )   expect ( keys.every ( event => event.finished === false ) ).toBe ( true )
             }) // it Example contract
-    }) // describe Callback modes
+        }) // describe Callback modes
+    }) // describe Source and bundle
 
 }) // describe
