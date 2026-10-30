@@ -66,6 +66,9 @@ The [benchmark script](https://github.com/PeterNaydenov/walk-async/blob/main/ben
 
 ## Installation
 
+Walk Async uses `ask-for-promise` and requires a JavaScript runtime with
+`WeakRef` support, including when using the bundled browser distributions.
+
 ```sh
 npm install @peter.naydenov/walk-async
 ```
