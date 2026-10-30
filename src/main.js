@@ -20,6 +20,8 @@ import createCallbackArgs from "./createCallbackArgs.js";
 import PASS, { isPass } from "./pass.js";
 import IGNORE, { isIgnore } from "./ignore.js";
 import runCallback from "./runCallback.js";
+import askForPromise from "ask-for-promise";
+import runTask from "./runTask.js";
 import { isFinish } from "./finish.js";
 
 
@@ -179,29 +181,34 @@ import { isFinish } from "./finish.js";
  *  // If you modify an object with objectCallback, keyCallback will be
  *  // executed on the result of objectCallback.
  */
-async function walk (options,...args) {
+function walk (options,...args) {
+    return runTask ( start() )
+
+    function* start () {
     const pending = new Set ();
     const task = traverse ( options, pending, ...args );
-    if ( options.timeout == null )   return task
+    if ( options.timeout == null )   return yield task
 
-    let timer;
-    const guard = new Promise ( ( resolve, reject ) => {
-            timer = setTimeout ( () => {
+    const guard = askForPromise();
+    const timer = setTimeout ( () => {
                     const stuck = [...pending].map ( name => `\n  - ${name}` ).join ( '' );
-                    reject ( new Error ( `walk-async: timed out after ${options.timeout}ms; callbacks still pending:${stuck}` ) )
+                    guard.cancel ( new Error ( `walk-async: timed out after ${options.timeout}ms; callbacks still pending:${stuck}` ) )
                 }, options.timeout )
-        })
+    task.then ( guard.done, guard.cancel )
     try {
-            return await Promise.race ([ task, guard ])
+            return yield guard.promise
         }
     finally {
             clearTimeout ( timer )
         }
+    }
 } // walk func.
 
 
 
-async function traverse ( options, pending, ...args ) {
+function traverse ( options, pending, ...args ) {
+    return runTask ( visit() )
+    function* visit () {
     let
           { data:origin, keyCallback, objectCallback, settings:config } = options
         , type = findType ( origin )
@@ -227,7 +234,7 @@ async function traverse ( options, pending, ...args ) {
             const rootParent = settings.parentPath ? Object.freeze ( [] ) : undefined
             const callbackArgs = createCallbackArgs ( origin, 'root', IGNORE, breadcrumbs, rootParent, settings )
             callbackArgs.PASS = PASS
-            const replacement = await runCallback ( objectCallback, callbackArgs, pending, 'objectCallback', ...args )
+            const replacement = yield runCallback ( objectCallback, callbackArgs, pending, 'objectCallback', ...args )
             if ( isFinish ( replacement ) ) {
                     if ( !replacement.hasValue ) {
                             if ( !settings.copy )   return
@@ -252,11 +259,11 @@ async function traverse ( options, pending, ...args ) {
     switch ( type ) {
             case 'array'  :
                                 result = settings.copy ? [] : undefined
-                                parent = await copyObject ( origin, result, extend, cb, breadcrumbs, settings, control, parentPath, pass, undefined, ancestors, pending, ...args )
+                                parent = yield copyObject ( origin, result, extend, cb, breadcrumbs, settings, control, parentPath, pass, undefined, ancestors, pending, ...args )
                                 break
             case 'object' :
                                 result = settings.copy ? {} : undefined
-                                parent = await copyObject ( origin, result, extend, cb, breadcrumbs, settings, control, parentPath, pass, undefined, ancestors, pending, ...args )
+                                parent = yield copyObject ( origin, result, extend, cb, breadcrumbs, settings, control, parentPath, pass, undefined, ancestors, pending, ...args )
                                 break
             case 'simple' :
                                 return settings.copy ? origin : undefined
@@ -268,10 +275,11 @@ async function traverse ( options, pending, ...args ) {
             control.restart = false
             if ( settings.detectCycles )   ancestors = moveParents ( parent, job.parent, ancestors )
             const path = settings.parentPath ? Object.freeze ([ ...job.parentPath, job.key ]) : undefined;
-            parent = await copyObject ( job.data, job.location, extend, cb, job.breadcrumbs, settings, control, path, job.pass, job.parent, ancestors, pending, ...args )
+            parent = yield copyObject ( job.data, job.location, extend, cb, job.breadcrumbs, settings, control, path, job.pass, job.parent, ancestors, pending, ...args )
             index = control.restart ? 0 : index + 1
         }
     return result
+    }
 } // traverse func.
 
 
